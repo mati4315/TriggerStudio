@@ -67,6 +67,16 @@ const scanner = new AssetScanner(MEDIA_PATH);
 obsController.connect();
 
 // Serve static files
+app.use((req, res, next) => {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, PUT, PATCH, DELETE');
+  res.setHeader('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+  if (req.method === 'OPTIONS') {
+    res.sendStatus(200);
+  } else {
+    next();
+  }
+});
 app.use(express.static(path.join(__dirname, '../public')));
 app.use('/media', express.static(MEDIA_PATH, { dotfiles: 'allow' }));
 app.use(express.json());
