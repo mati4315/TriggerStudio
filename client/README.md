@@ -1,73 +1,48 @@
-# React + TypeScript + Vite
+# TriggerStudio Client
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Este es el cliente nativo de escritorio para **TriggerStudio**, desarrollado con **Electron**, **React**, **TypeScript** y **Vite**.
 
-Currently, two official plugins are available:
+Permite visualizar la biblioteca de medios del servidor en un panel premium con diseño glassmorphic y disparar de forma remota videos, audios, imágenes y GIFs directamente en OBS Studio con baja latencia.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+---
 
-## React Compiler
+## 🎨 Características de la UI
+* **Tema Premium Glassmorphic:** Fondos semi-transparentes de efecto vidrio con desenfoques radiales de color y bordes luminosos.
+* **Filtros por Tipo:** Segmentación instantánea por Videos, GIFs/Imágenes y Sonidos.
+* **Control Remoto Inmediato:** Grid interactivo que muestra las previsualizaciones y el estado "EN VIVO" de los recursos activos.
+* **Consola de Eventos:** Registro integrado de eventos y respuestas del servidor en tiempo real.
+* **Disparador Manual:** Formulario para introducir nombres de archivos, seleccionar su tipo y duración en segundos.
+* **Configurador del Servidor:** Interfaz de usuario para ajustar la IP y el puerto de conexión LAN con persistencia local en `localStorage`.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+---
 
-## Expanding the ESLint configuration
+## 🚀 Requisitos previos
+1. Tener instalado [Node.js](https://nodejs.org/).
+2. Asegurar que el servidor de TriggerStudio (`/server`) esté corriendo en la misma red local.
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+---
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+## 🛠️ Comandos de Desarrollo
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+Instalar dependencias:
+```bash
+npm install
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
-
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+Iniciar el entorno de desarrollo (lanza el servidor de desarrollo de Vite y la ventana de Electron concurrentemente):
+```bash
+npm start
 ```
+
+Compilar la aplicación para producción (empaqueta el bundle en la carpeta `/dist` para que Electron la ejecute localmente sin servidor de desarrollo):
+```bash
+npm run build
+```
+
+---
+
+## 📂 Estructura del Proyecto
+* `main.cjs` - Proceso principal de Electron. Configura y gestiona el ciclo de vida de la ventana nativa.
+* `src/main.tsx` - Punto de entrada de React.
+* `src/App.tsx` - Componente principal que gestiona las conexiones WebSocket, los estados de sincronización y los widgets del panel.
+* `src/index.css` - Estilos globales de la interfaz de usuario con variables de diseño, paletas de colores modernos y micro-animaciones.
