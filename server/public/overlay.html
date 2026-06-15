@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>TriggerStudio Overlay</title>
+  <style>
+    body, html {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background-color: transparent; /* transparent for OBS Browser Source */
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+    #media-container {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      width: 100%;
+      height: 100%;
+      opacity: 0;
+      transform: scale(0.85);
+      transition: opacity 0.25s cubic-bezier(0.4, 0, 0.2, 1), transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+    #media-container.visible {
+      opacity: 1;
+      transform: scale(1);
+    }
+    video, img {
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5); /* subtle drop shadow for premium look */
+      border-radius: 16px; /* rounded corners for modern vibe */
+    }
+  </style>
+</head>
+<body>
+  <div id="media-container">
+    <video id="video-player" playsinline></video>
+    <img id="image-player" style="display: none;" />
+  </div>
+  <script>
+    const container = document.getElementById('media-container');
+    const videoPlayer = document.getElementById('video-player');
+    const imagePlayer = document.getElementById('image-player');
+
+    let ws;
+    function connect() {
+      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      const wsUrl = `${protocol}//${window.location.host}`;
+      console.log('Connecting to WebSocket overlay at:', wsUrl);
+      ws = new WebSocket(wsUrl);
+
+      ws.onmessage = (event) => {
+        try {
+          const msg = JSON.parse(event.data);
+          if (msg.type === 'media_state') {
+            if (msg.state === 'playing') {
+              showMedia(msg.assetName);
+            } else if (msg.state === 'hidden') {
+              hideMedia();
+            }
+          } else if (msg.type === 'all_stopped') {
+            hideMedia();
+          }
+        } catch (e) {
+          console.error('Error parsing WS message:', e);
+        }
+      };
+
+      ws.onclose = () => {
+        console.log('WS overlay closed. Reconnecting in 2s...');
+        setTimeout(connect, 2000);
+      };
+    }
+
+    function showMedia(assetName) {
+      const ext = assetName.split('.').pop().toLowerCase();
+      const isVideo = ['mp4', 'webm', 'ogg', 'mov', 'mkv'].includes(ext);
+
+      // Hide all first
+      videoPlayer.style.display = 'none';
+      videoPlayer.pause();
+      imagePlayer.style.display = 'none';
+
+      const mediaUrl = '/media/' + assetName.split('/').map(encodeURIComponent).join('/');
+
+      if (isVideo) {
+        videoPlayer.src = mediaUrl;
+        videoPlayer.style.display = 'block';
+        videoPlayer.play().catch(err => {
+          console.warn("Playback failed:", err);
+        });
+      } else {
+        imagePlayer.src = mediaUrl;
+        imagePlayer.style.display = 'block';
+      }
+
+      container.classList.add('visible');
+    }
+
+    function hideMedia() {
+      container.classList.remove('visible');
+      setTimeout(() => {
+        videoPlayer.pause();
+        videoPlayer.src = '';
+        imagePlayer.src = '';
+        videoPlayer.style.display = 'none';
+        imagePlayer.style.display = 'none';
+      }, 300);
+    }
+
+    connect();
+  </script>
+</body>
+</html>
