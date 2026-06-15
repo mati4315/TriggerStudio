@@ -4,7 +4,7 @@ import path from 'path';
 export interface MediaAsset {
   id: string;
   name: string;
-  type: 'video' | 'image';
+  type: 'video' | 'image' | 'audio';
   file: string; // Relative to MEDIA_PATH
   thumbnail?: string;
   category: string;
@@ -14,6 +14,7 @@ export class AssetScanner {
   private mediaPath: string;
   private videoExtensions = ['.mp4', '.mkv', '.webm', '.avi', '.mov'];
   private imageExtensions = ['.gif', '.png', '.jpg', '.jpeg', '.webp'];
+  private audioExtensions = ['.mp3', '.wav', '.ogg', '.m4a', '.aac', '.flac'];
 
   constructor(mediaPath: string) {
     this.mediaPath = mediaPath;
@@ -59,12 +60,14 @@ export class AssetScanner {
 
       if (stat.isFile()) {
         const ext = path.extname(item).toLowerCase();
-        let type: 'video' | 'image' | null = null;
+        let type: 'video' | 'image' | 'audio' | null = null;
 
         if (this.videoExtensions.includes(ext)) {
           type = 'video';
         } else if (this.imageExtensions.includes(ext)) {
           type = 'image';
+        } else if (this.audioExtensions.includes(ext)) {
+          type = 'audio';
         }
 
         if (type) {

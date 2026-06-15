@@ -8,7 +8,7 @@ interface ClientMessage {
   action: 'play' | 'stop' | 'hide' | 'status';
   video?: string;      // Simple format
   asset?: string;      // Structured format
-  type?: 'video' | 'image';
+  type?: 'video' | 'image' | 'audio';
   duration?: number;   // Auto-hide duration in seconds
   sceneName?: string;
   sourceName?: string;
@@ -19,7 +19,7 @@ export class TriggerWebSocketServer {
   private obsController: OBSController;
   private mediaPath: string;
   private activeTimeouts: Map<string, NodeJS.Timeout> = new Map();
-  private activeAssets: Map<string, { asset: string; type: 'video' | 'image'; startedAt: number }> = new Map();
+  private activeAssets: Map<string, { asset: string; type: 'video' | 'image' | 'audio'; startedAt: number }> = new Map();
 
   constructor(server: Server, obsController: OBSController, mediaPath: string) {
     this.obsController = obsController;
@@ -93,6 +93,7 @@ export class TriggerWebSocketServer {
     const sceneName = msg.sceneName || process.env.OBS_SCENE || activeScene;
     const defaultVideoSource = process.env.OBS_SOURCE_VIDEO || 'Overlay_Main';
     const defaultImageSource = process.env.OBS_SOURCE_IMAGE || 'GIF_Overlay';
+    const defaultAudioSource = process.env.OBS_SOURCE_AUDIO || 'Sound_Effect';
 
     if (msg.action === 'status') {
       this.sendConnectionStatus(ws);
@@ -111,22 +112,38 @@ export class TriggerWebSocketServer {
       const ext = path.extname(fileName).toLowerCase();
       const imageExtensions = ['.gif', '.png', '.jpg', '.jpeg', '.webp', '.bmp', '.tiff'];
       const videoExtensions = ['.mp4', '.mkv', '.webm', '.avi', '.mov', '.m4v'];
+      const audioExtensions = ['.mp3', '.wav', '.ogg', '.m4a', '.aac', '.flac'];
       
       let isVideo = true;
+      let isAudio = false;
       if (msg.type === 'image') {
         isVideo = false;
       } else if (msg.type === 'video') {
         isVideo = true;
+      } else if (msg.type === 'audio') {
+        isVideo = false;
+        isAudio = true;
       } else if (imageExtensions.includes(ext)) {
         isVideo = false;
       } else if (videoExtensions.includes(ext)) {
         isVideo = true;
+      } else if (audioExtensions.includes(ext)) {
+        isVideo = false;
+        isAudio = true;
       }
 
       // Determine the target sourceName (with intelligent fallback)
       let sourceName = msg.sourceName;
       if (!sourceName) {
-        if (isVideo) {
+        if (isAudio) {
+          const audioSourceExists = await this.obsController.sourceExistsInScene(sceneName, defaultAudioSource);
+          if (audioSourceExists) {
+            sourceName = defaultAudioSource;
+          } else {
+            console.log(`[WS] Audio source "${defaultAudioSource}" not found in scene "${sceneName}". Falling back to video source "${defaultVideoSource}"`);
+            sourceName = defaultVideoSource;
+          }
+        } else if (isVideo) {
           sourceName = defaultVideoSource;
         } else {
           // If it's an image/gif, check if defaultImageSource is in the scene.
@@ -158,9 +175,11 @@ export class TriggerWebSocketServer {
         this.activeTimeouts.delete(timeoutKey);
       }
 
-      const result = await this.obsController.playAsset(sceneName, sourceName, resolvedPath, isVideo);
+      // Audio is played as a media source in OBS (isVideo = true)
+      const playAsVideo = isVideo || isAudio;
+      const result = await this.obsController.playAsset(sceneName, sourceName, resolvedPath, playAsVideo);
       if (result.success) {
-        const isStaticImage = !isVideo && ext !== '.gif';
+        const isStaticImage = !isVideo && !isAudio && ext !== '.gif';
         const msgText = isStaticImage 
           ? `Playing ${fileName} on ${sourceName} (Static Image: 2s limit enforced)` 
           : `Playing ${fileName} on ${sourceName}`;
@@ -172,7 +191,7 @@ export class TriggerWebSocketServer {
         // Track active asset
         this.activeAssets.set(sourceName, {
           asset: fileName,
-          type: isVideo ? 'video' : 'image',
+          type: isAudio ? 'audio' : (isVideo ? 'video' : 'image'),
           startedAt: Date.now()
         });
 

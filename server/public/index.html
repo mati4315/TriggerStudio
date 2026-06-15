@@ -251,7 +251,7 @@
 
     .row-cols {
       display: grid;
-      grid-template-columns: 1fr 1fr;
+      grid-template-columns: repeat(3, 1fr);
       gap: 0.5rem;
     }
 
@@ -386,6 +386,11 @@
       border: 1px solid rgba(244, 114, 182, 0.3);
     }
 
+    .tag-audio {
+      color: #10b981;
+      border: 1px solid rgba(16, 185, 129, 0.3);
+    }
+
     /* Warning Card */
     .empty-state {
       grid-column: 1 / -1;
@@ -500,6 +505,9 @@
             </label>
             <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; color: var(--text-main)">
               <input type="radio" name="media-type" value="image"> Imagen/Gif
+            </label>
+            <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; color: var(--text-main)">
+              <input type="radio" name="media-type" value="audio"> Audio
             </label>
           </div>
         </div>
@@ -673,8 +681,15 @@
           card.className = 'asset-card';
           card.dataset.file = asset.file;
           
-          const icon = asset.type === 'video' ? '🎬' : '🖼️';
-          const tagClass = asset.type === 'video' ? 'tag-video' : 'tag-image';
+          let icon = '🖼️';
+          let tagClass = 'tag-image';
+          if (asset.type === 'video') {
+            icon = '🎬';
+            tagClass = 'tag-video';
+          } else if (asset.type === 'audio') {
+            icon = '🎵';
+            tagClass = 'tag-audio';
+          }
           
           card.innerHTML = `
             <span class="asset-tag ${tagClass}">${asset.type}</span>
