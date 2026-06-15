@@ -352,6 +352,18 @@
       z-index: 1;
     }
 
+    .asset-thumbnail {
+      width: 120px;
+      height: 70px;
+      object-fit: cover;
+      border-radius: 8px;
+      margin-bottom: 0.75rem;
+      border: 1px solid var(--border-color);
+      z-index: 1;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+      transition: transform 0.2s ease;
+    }
+
     .asset-name {
       font-size: 0.9rem;
       font-weight: 600;
@@ -691,9 +703,15 @@
             tagClass = 'tag-audio';
           }
           
+          // Render thumbnail if present, fallback to emoji if error
+          let mediaElement = `<div class="asset-icon">${icon}</div>`;
+          if (asset.thumbnail) {
+            mediaElement = `<img class="asset-thumbnail" src="${asset.thumbnail}" alt="${asset.name}" onerror="this.onerror=null; this.outerHTML='<div class=&quot;asset-icon&quot;>${icon}</div>';" />`;
+          }
+          
           card.innerHTML = `
             <span class="asset-tag ${tagClass}">${asset.type}</span>
-            <div class="asset-icon">${icon}</div>
+            ${mediaElement}
             <div class="asset-name">${asset.name}</div>
           `;
           

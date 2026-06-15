@@ -68,7 +68,7 @@ obsController.connect();
 
 // Serve static files
 app.use(express.static(path.join(__dirname, '../public')));
-app.use('/media', express.static(MEDIA_PATH));
+app.use('/media', express.static(MEDIA_PATH, { dotfiles: 'allow' }));
 app.use(express.json());
 
 // API: List assets

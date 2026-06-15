@@ -1,5 +1,6 @@
 import fs from 'fs';
 import path from 'path';
+import { ThumbnailGenerator } from './thumbnailGenerator';
 
 export interface MediaAsset {
   id: string;
@@ -15,9 +16,11 @@ export class AssetScanner {
   private videoExtensions = ['.mp4', '.mkv', '.webm', '.avi', '.mov'];
   private imageExtensions = ['.gif', '.png', '.jpg', '.jpeg', '.webp'];
   private audioExtensions = ['.mp3', '.wav', '.ogg', '.m4a', '.aac', '.flac'];
+  private thumbnailGenerator: ThumbnailGenerator;
 
   constructor(mediaPath: string) {
     this.mediaPath = mediaPath;
+    this.thumbnailGenerator = new ThumbnailGenerator(mediaPath);
   }
 
   /**
@@ -76,11 +79,18 @@ export class AssetScanner {
           const cleanName = path.basename(item, ext).replace(/[_-]/g, ' ');
           const id = Buffer.from(relativeFile).toString('base64').replace(/=/g, '');
 
+          // Get or trigger thumbnail generation for images and videos
+          let thumbnail: string | undefined = undefined;
+          if (type === 'video' || type === 'image') {
+            thumbnail = this.thumbnailGenerator.getOrGenerate(fullPath, id, type);
+          }
+
           assets.push({
             id,
             name: cleanName,
             type,
             file: relativeFile.replace(/\\/g, '/'),
+            thumbnail,
             category
           });
         }
