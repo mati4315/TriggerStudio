@@ -1,0 +1,38 @@
+ Activar el WebSocket en OBS (Una sola vez)
+
+
+
+ El servidor de Node.js necesita comunicarse con tu OBS para poder controlarlo.
+
+Abre OBS Studio.
+En el menú superior, ve a Herramientas (Tools) ➔ Ajustes del servidor WebSocket (WebSocket Server Settings).
+Asegúrate de marcar la casilla Habilitar servidor WebSocket (Enable WebSocket server).
+El puerto debe ser el 4455.
+Marca Habilitar autenticación y coloca la contraseña que tienes configurada en el archivo .env de tu servidor: 👉 Contraseña: ZfqswfXVmQFf8uDd
+Paso 2: Crear las Fuentes Fijas en tu Escena de OBS
+Para evitar lag, lentitud y fugas de memoria, TriggerStudio no crea fuentes desde cero, sino que reutiliza fuentes que ya existen en tu escena.
+
+Debes crear estas fuentes en la escena que vayas a usar para transmitir:
+
+Para los Videos (Overlay_Main):
+
+Agrega una nueva fuente del tipo Fuente multimedia (Media Source).
+Ponle como nombre exacto: Overlay_Main
+Tip: Puedes dejarla vacía o con cualquier video de prueba por defecto. Colócala centrada y en el tamaño que desees en tu pantalla de OBS.
+Para las Imágenes y GIFs (GIF_Overlay):
+
+Agrega una nueva fuente del tipo Imagen (Image).
+Ponle como nombre exacto: GIF_Overlay
+Tip: Selecciona cualquier imagen de prueba por defecto. Centra esta fuente y ajústala al tamaño deseado.
+Para los Sonidos y Efectos de Audio (Sound_Effect):
+
+Agrega una nueva fuente del tipo Fuente multimedia (Media Source).
+Ponle como nombre exacto: Sound_Effect
+Paso 3: ¡Listo para Disparar!
+Una vez creadas las fuentes:
+
+El servidor las detectará automáticamente al iniciar.
+Cuando hagas click en un video, GIF o sonido en el cliente, TriggerStudio:
+Cambiará el archivo de la fuente correspondiente (Overlay_Main o GIF_Overlay) por el meme que elegiste.
+Hará visible la fuente y la reproducirá en el centro exacto de la pantalla.
+La ocultará automáticamente al terminar (o pasados 2 segundos si es una imagen estática).

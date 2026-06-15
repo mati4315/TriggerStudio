@@ -60,7 +60,7 @@
           const msg = JSON.parse(event.data);
           if (msg.type === 'media_state') {
             if (msg.state === 'playing') {
-              showMedia(msg.assetName);
+              showMedia(msg.assetName, msg.category, msg.sourceName);
             } else if (msg.state === 'hidden') {
               hideMedia();
             }
@@ -78,13 +78,14 @@
       };
     }
 
-    function showMedia(assetName) {
+    function showMedia(assetName, category, sourceName) {
       const ext = assetName.split('.').pop().toLowerCase();
       const isVideo = ['mp4', 'webm', 'ogg', 'mov', 'mkv'].includes(ext);
 
       // Hide all first
       videoPlayer.style.display = 'none';
       videoPlayer.pause();
+      videoPlayer.onended = null;
       imagePlayer.style.display = 'none';
 
       const mediaUrl = '/media/' + assetName.split('/').map(encodeURIComponent).join('/');
@@ -92,6 +93,20 @@
       if (isVideo) {
         videoPlayer.src = mediaUrl;
         videoPlayer.style.display = 'block';
+
+        if (category === 'Noticias') {
+          videoPlayer.onended = () => {
+            hideMedia();
+            if (ws && ws.readyState === WebSocket.OPEN) {
+              ws.send(JSON.stringify({ 
+                action: 'ended', 
+                asset: assetName, 
+                sourceName: sourceName 
+              }));
+            }
+          };
+        }
+
         videoPlayer.play().catch(err => {
           console.warn("Playback failed:", err);
         });

@@ -31,7 +31,7 @@ function initializeMediaFolder() {
   }
 
   // Create standard subdirectories
-  const subdirs = ['videos', 'gifs', 'memes', 'overlays', 'sounds'];
+  const subdirs = ['videos', 'gifs', 'memes', 'overlays', 'sounds', 'noticias'];
   subdirs.forEach(subdir => {
     const subdirPath = path.join(MEDIA_PATH, subdir);
     if (!fs.existsSync(subdirPath)) {
@@ -46,6 +46,8 @@ function initializeMediaFolder() {
         fs.writeFileSync(path.join(subdirPath, 'video_demo.mp4'), '');
       } else if (subdir === 'gifs') {
         fs.writeFileSync(path.join(subdirPath, 'gif_demo.gif'), '');
+      } else if (subdir === 'noticias') {
+        fs.writeFileSync(path.join(subdirPath, 'noticia_demo.mp4'), '');
       }
     }
   });

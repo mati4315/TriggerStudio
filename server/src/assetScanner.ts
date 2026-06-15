@@ -38,7 +38,7 @@ export class AssetScanner {
       this.scanDir(this.mediaPath, '', 'General', assets);
 
       // 2. Scan standard subdirectories
-      const subdirs = ['videos', 'gifs', 'memes', 'overlays', 'sounds'];
+      const subdirs = ['videos', 'gifs', 'memes', 'overlays', 'sounds', 'noticias'];
       for (const subdir of subdirs) {
         const fullSubdirPath = path.join(this.mediaPath, subdir);
         if (fs.existsSync(fullSubdirPath) && fs.statSync(fullSubdirPath).isDirectory()) {

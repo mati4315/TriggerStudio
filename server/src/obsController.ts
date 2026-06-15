@@ -8,6 +8,7 @@ export class OBSController {
   private password?: string;
   private isConnected: boolean = false;
   private reconnectInterval: NodeJS.Timeout | null = null;
+  private mediaEndedCallback?: (inputName: string) => void;
 
   constructor(url: string, password?: string) {
     this.obs = new OBSWebSocket();
@@ -29,6 +30,19 @@ export class OBSController {
         this.reconnectInterval = null;
       }
     });
+
+    // Listen for media playback ending
+    this.obs.on('MediaInputPlaybackEnded', (data: any) => {
+      const { inputName } = data;
+      console.log(`[OBS Event] Media input ended playback: ${inputName}`);
+      if (this.mediaEndedCallback) {
+        this.mediaEndedCallback(inputName);
+      }
+    });
+  }
+
+  public onMediaEnded(callback: (inputName: string) => void) {
+    this.mediaEndedCallback = callback;
   }
 
   public async connect(): Promise<boolean> {

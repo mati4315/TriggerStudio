@@ -323,6 +323,16 @@ body {
   background: rgba(16, 185, 129, 0.06);
 }
 
+.asset-card.played {
+  opacity: 0.5;
+  filter: grayscale(30%);
+}
+
+.asset-card.played:hover {
+  opacity: 0.95;
+  filter: none;
+}
+
 .asset-card.playing::after {
   content: 'EN VIVO';
   position: absolute;
@@ -369,6 +379,7 @@ body {
 }
 
 .asset-thumbnail-container {
+  position: relative;
   width: 100%;
   height: 95px;
   border-radius: 10px;

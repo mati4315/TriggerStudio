@@ -56,7 +56,7 @@ export default function App() {
 
   // Filters & search
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedType, setSelectedType] = useState<'all' | 'video' | 'image' | 'audio'>('all');
+  const [selectedType, setSelectedType] = useState<'all' | 'video' | 'image' | 'audio' | 'noticias'>('all');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [showOnlyFavorites, setShowOnlyFavorites] = useState<boolean>(false);
 
@@ -79,9 +79,22 @@ export default function App() {
     }
   });
 
+  const [playedAssets, setPlayedAssets] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem('ts_played_assets');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+
   useEffect(() => {
     localStorage.setItem('ts_favorites', JSON.stringify(favorites));
   }, [favorites]);
+
+  useEffect(() => {
+    localStorage.setItem('ts_played_assets', JSON.stringify(playedAssets));
+  }, [playedAssets]);
 
   useEffect(() => {
     localStorage.setItem('ts_asset_settings', JSON.stringify(assetSettings));
@@ -256,11 +269,17 @@ export default function App() {
       action: 'play',
       asset: asset.file,
       type: asset.type,
+      category: asset.category,
       sourceName: targetSource,
       duration: duration
     };
 
     wsRef.current.send(JSON.stringify(payload));
+
+    // Mark as played if it belongs to Noticias category
+    if (asset.category === 'Noticias') {
+      setPlayedAssets(prev => prev.includes(asset.id) ? prev : [...prev, asset.id]);
+    }
 
     let logMsg = `Disparando recurso: ${asset.name} (${asset.type})`;
     if (targetSource) logMsg += ` en la fuente "${targetSource}"`;
@@ -319,7 +338,12 @@ export default function App() {
       const matchesSearch = asset.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
                             asset.file.toLowerCase().includes(searchQuery.toLowerCase());
       
-      const matchesType = selectedType === 'all' || asset.type === selectedType;
+      let matchesType = true;
+      if (selectedType === 'noticias') {
+        matchesType = asset.category === 'Noticias';
+      } else {
+        matchesType = selectedType === 'all' || asset.type === selectedType;
+      }
 
       const matchesCategory = selectedCategory === 'all' || asset.category === selectedCategory;
 
@@ -506,6 +530,16 @@ export default function App() {
                 <Volume2 style={{ width: 14, height: 14 }} />
                 Audios
               </button>
+              <button 
+                className={`tab-btn ${selectedType === 'noticias' ? 'active' : ''}`}
+                onClick={() => {
+                  setSelectedType('noticias');
+                  setSelectedCategory('all');
+                }}
+              >
+                <Tv style={{ width: 14, height: 14 }} />
+                Noticias
+              </button>
             </div>
 
             {/* Favorite Filter Toggle */}
@@ -517,6 +551,26 @@ export default function App() {
               <Star style={{ width: 14, height: 14, fill: showOnlyFavorites ? 'currentColor' : 'none' }} />
               <span>Favoritos</span>
             </button>
+
+            {selectedType === 'noticias' && playedAssets.length > 0 && (
+              <button 
+                type="button"
+                className="favorite-toggle-btn"
+                style={{ 
+                  marginLeft: 'auto', 
+                  background: 'rgba(239, 68, 68, 0.1)', 
+                  color: '#f87171', 
+                  borderColor: 'rgba(239, 68, 68, 0.35)' 
+                }}
+                onClick={() => {
+                  if (confirm('¿Desea restablecer todas las noticias como no leídas?')) {
+                    setPlayedAssets([]);
+                  }
+                }}
+              >
+                Limpiar Leídos ({playedAssets.length})
+              </button>
+            )}
           </div>
 
           <div className="header-actions">
@@ -586,6 +640,7 @@ export default function App() {
                     key={asset.id} 
                     asset={asset} 
                     isActive={isActive} 
+                    isPlayed={playedAssets.includes(asset.id)}
                     baseUrl={baseUrl}
                     onClick={() => triggerAsset(asset)}
                     isFavorite={favorites.includes(asset.id)}
@@ -703,6 +758,7 @@ export default function App() {
 function AssetCard({ 
   asset, 
   isActive, 
+  isPlayed,
   baseUrl, 
   onClick,
   isFavorite,
@@ -712,6 +768,7 @@ function AssetCard({
 }: { 
   asset: MediaAsset; 
   isActive: boolean; 
+  isPlayed: boolean;
   baseUrl: string; 
   onClick: () => void; 
   isFavorite: boolean;
@@ -746,7 +803,7 @@ function AssetCard({
   const thumbUrl = asset.thumbnail ? `${baseUrl}${asset.thumbnail}` : undefined;
 
   return (
-    <div className={`asset-card ${isActive ? 'playing' : ''}`} onClick={onClick}>
+    <div className={`asset-card ${isActive ? 'playing' : ''} ${isPlayed ? 'played' : ''}`} onClick={onClick}>
       <span className={`asset-type-badge ${fallbackInfo.badgeClass}`}>
         {asset.type}
       </span>
@@ -785,6 +842,35 @@ function AssetCard({
           />
         ) : (
           fallbackInfo.icon
+        )}
+        {isPlayed && (
+          <div style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            width: '100%',
+            height: '100%',
+            background: 'rgba(7, 7, 10, 0.65)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 2,
+            pointerEvents: 'none'
+          }}>
+            <span style={{
+              background: '#1e293b',
+              color: '#94a3b8',
+              border: '1px solid rgba(255, 255, 255, 0.08)',
+              padding: '4px 8px',
+              borderRadius: '20px',
+              fontSize: '0.65rem',
+              fontWeight: 800,
+              letterSpacing: '0.05em',
+              boxShadow: '0 4px 10px rgba(0,0,0,0.4)'
+            }}>
+              ✓ PASADO
+            </span>
+          </div>
         )}
       </div>
 

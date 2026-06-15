@@ -5,10 +5,11 @@ import fs from 'fs';
 import { OBSController } from './obsController';
 
 interface ClientMessage {
-  action: 'play' | 'stop' | 'hide' | 'status';
+  action: 'play' | 'stop' | 'hide' | 'status' | 'ended';
   video?: string;      // Simple format
   asset?: string;      // Structured format
   type?: 'video' | 'image' | 'audio';
+  category?: string;   // Category of the asset
   duration?: number;   // Auto-hide duration in seconds
   sceneName?: string;
   sourceName?: string;
@@ -19,7 +20,7 @@ export class TriggerWebSocketServer {
   private obsController: OBSController;
   private mediaPath: string;
   private activeTimeouts: Map<string, NodeJS.Timeout> = new Map();
-  private activeAssets: Map<string, { asset: string; type: 'video' | 'image' | 'audio'; startedAt: number }> = new Map();
+  private activeAssets: Map<string, { asset: string; type: 'video' | 'image' | 'audio'; startedAt: number; category?: string }> = new Map();
 
   constructor(server: Server, obsController: OBSController, mediaPath: string) {
     this.obsController = obsController;
@@ -46,6 +47,29 @@ export class TriggerWebSocketServer {
       ws.on('close', () => {
         console.log('[WS] Client disconnected');
       });
+    });
+
+    // Register media playback ended event from OBS to auto-hide "Noticias"
+    this.obsController.onMediaEnded(async (inputName: string) => {
+      const active = this.activeAssets.get(inputName);
+      if (active && active.category === 'Noticias') {
+        console.log(`[OBS Event] Auto-hiding finished Noticias video on source: ${inputName}`);
+        
+        // Find current scene and hide
+        const activeScene = await this.obsController.getCurrentSceneName();
+        const sceneName = process.env.OBS_SCENE || activeScene;
+        
+        await this.obsController.hideAsset(sceneName, inputName);
+        this.activeAssets.delete(inputName);
+        this.broadcastMediaStatus(sceneName, inputName, 'hidden');
+        
+        // Clear any active auto-hide timeouts for this source if they exist
+        const timeoutKey = `${sceneName}:${inputName}`;
+        if (this.activeTimeouts.has(timeoutKey)) {
+          clearTimeout(this.activeTimeouts.get(timeoutKey)!);
+          this.activeTimeouts.delete(timeoutKey);
+        }
+      }
     });
 
     // Periodically broadcast status to all clients
@@ -97,6 +121,16 @@ export class TriggerWebSocketServer {
 
     if (msg.action === 'status') {
       this.sendConnectionStatus(ws);
+      return;
+    }
+
+    if (msg.action === 'ended') {
+      const sourceName = msg.sourceName || defaultVideoSource;
+      console.log(`[WS] Client reported media ended on source: ${sourceName}`);
+      if (this.activeAssets.has(sourceName)) {
+        this.activeAssets.delete(sourceName);
+        this.broadcastMediaStatus(sceneName, sourceName, 'hidden');
+      }
       return;
     }
 
@@ -192,11 +226,12 @@ export class TriggerWebSocketServer {
         this.activeAssets.set(sourceName, {
           asset: fileName,
           type: isAudio ? 'audio' : (isVideo ? 'video' : 'image'),
+          category: msg.category,
           startedAt: Date.now()
         });
 
         // Broadcast that it is playing
-        this.broadcastMediaStatus(sceneName, sourceName, 'playing', fileName);
+        this.broadcastMediaStatus(sceneName, sourceName, 'playing', fileName, msg.category);
 
         // Handle auto-hide: enforce 2-second display limit only for static images
         const duration = isStaticImage ? 2 : (msg.duration || 0);
@@ -265,13 +300,14 @@ export class TriggerWebSocketServer {
     });
   }
 
-  private broadcastMediaStatus(sceneName: string, sourceName: string, state: 'playing' | 'hidden', assetName?: string) {
+  private broadcastMediaStatus(sceneName: string, sourceName: string, state: 'playing' | 'hidden', assetName?: string, category?: string) {
     const msg = JSON.stringify({
       type: 'media_state',
       sceneName,
       sourceName,
       state,
-      assetName
+      assetName,
+      category
     });
     this.wss.clients.forEach((client) => {
       if (client.readyState === WebSocket.OPEN) {
@@ -287,8 +323,8 @@ export class TriggerWebSocketServer {
       return fullPath;
     }
 
-    // 2. Subdirectory checks (videos, gifs, memes, overlays, sounds)
-    const dirs = ['videos', 'gifs', 'memes', 'overlays', 'sounds'];
+    // 2. Subdirectory checks (videos, gifs, memes, overlays, sounds, noticias)
+    const dirs = ['videos', 'gifs', 'memes', 'overlays', 'sounds', 'noticias'];
     for (const dir of dirs) {
       fullPath = path.join(this.mediaPath, dir, fileName);
       if (fs.existsSync(fullPath) && fs.statSync(fullPath).isFile()) {
