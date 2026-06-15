@@ -11,7 +11,8 @@ import {
   ChevronUp, 
   ChevronDown, 
   RefreshCw, 
-  Activity
+  Activity,
+  Star
 } from 'lucide-react';
 
 interface MediaAsset {
@@ -56,6 +57,53 @@ export default function App() {
   // Filters & search
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedType, setSelectedType] = useState<'all' | 'video' | 'image' | 'audio'>('all');
+  const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const [showOnlyFavorites, setShowOnlyFavorites] = useState<boolean>(false);
+
+  // Favorites & custom settings storage
+  const [favorites, setFavorites] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem('ts_favorites');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  const [assetSettings, setAssetSettings] = useState<Record<string, { targetSource?: string; customDuration?: string }>>(() => {
+    try {
+      const saved = localStorage.getItem('ts_asset_settings');
+      return saved ? JSON.parse(saved) : {};
+    } catch {
+      return {};
+    }
+  });
+
+  useEffect(() => {
+    localStorage.setItem('ts_favorites', JSON.stringify(favorites));
+  }, [favorites]);
+
+  useEffect(() => {
+    localStorage.setItem('ts_asset_settings', JSON.stringify(assetSettings));
+  }, [assetSettings]);
+
+  // Dynamically compute list of categories from loaded assets
+  const categories = useMemo(() => {
+    const cats = new Set<string>();
+    assets.forEach(asset => {
+      if (asset.category) {
+        cats.add(asset.category);
+      }
+    });
+    return Array.from(cats).sort();
+  }, [assets]);
+
+  const toggleFavorite = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setFavorites(prev => 
+      prev.includes(id) ? prev.filter(fId => fId !== id) : [...prev, id]
+    );
+  };
 
   // Manual Trigger Form
   const [manualFile, setManualFile] = useState('');
@@ -198,15 +246,26 @@ export default function App() {
       return;
     }
 
+    const settings = assetSettings[asset.id] || {};
+    const targetSource = settings.targetSource || undefined;
+    const duration = settings.customDuration 
+      ? (parseInt(settings.customDuration) || 0)
+      : (parseInt(manualDuration) || 0);
+
     const payload = {
       action: 'play',
       asset: asset.file,
       type: asset.type,
-      duration: parseInt(manualDuration) || 0
+      sourceName: targetSource,
+      duration: duration
     };
 
     wsRef.current.send(JSON.stringify(payload));
-    addLog(`Disparando recurso: ${asset.name} (${asset.type})`, 'info');
+
+    let logMsg = `Disparando recurso: ${asset.name} (${asset.type})`;
+    if (targetSource) logMsg += ` en la fuente "${targetSource}"`;
+    if (duration > 0) logMsg += ` (duración: ${duration}s)`;
+    addLog(logMsg, 'info');
   };
 
   // Trigger manual input
@@ -262,9 +321,13 @@ export default function App() {
       
       const matchesType = selectedType === 'all' || asset.type === selectedType;
 
-      return matchesSearch && matchesType;
+      const matchesCategory = selectedCategory === 'all' || asset.category === selectedCategory;
+
+      const matchesFavorites = !showOnlyFavorites || favorites.includes(asset.id);
+
+      return matchesSearch && matchesType && matchesCategory && matchesFavorites;
     });
-  }, [assets, searchQuery, selectedType]);
+  }, [assets, searchQuery, selectedType, selectedCategory, showOnlyFavorites, favorites]);
 
   // Autoscroll logs
   const logsEndRef = useRef<HTMLDivElement>(null);
@@ -444,6 +507,16 @@ export default function App() {
                 Audios
               </button>
             </div>
+
+            {/* Favorite Filter Toggle */}
+            <button 
+              type="button"
+              className={`favorite-toggle-btn ${showOnlyFavorites ? 'active' : ''}`}
+              onClick={() => setShowOnlyFavorites(!showOnlyFavorites)}
+            >
+              <Star style={{ width: 14, height: 14, fill: showOnlyFavorites ? 'currentColor' : 'none' }} />
+              <span>Favoritos</span>
+            </button>
           </div>
 
           <div className="header-actions">
@@ -458,6 +531,32 @@ export default function App() {
             </button>
           </div>
         </header>
+
+        {/* Category Navigation Bar */}
+        {categories.length > 0 && (
+          <div className="category-bar">
+            <span className="category-bar-label">Categorías:</span>
+            <div className="category-pills">
+              <button 
+                type="button"
+                className={`category-pill ${selectedCategory === 'all' ? 'active' : ''}`}
+                onClick={() => setSelectedCategory('all')}
+              >
+                Todos
+              </button>
+              {categories.map(cat => (
+                <button
+                  key={cat}
+                  type="button"
+                  className={`category-pill ${selectedCategory === cat ? 'active' : ''}`}
+                  onClick={() => setSelectedCategory(cat)}
+                >
+                  {cat}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Media Grid Body */}
         <div className="main-body" style={{ paddingBottom: logsCollapsed ? '4rem' : '17rem' }}>
@@ -489,6 +588,20 @@ export default function App() {
                     isActive={isActive} 
                     baseUrl={baseUrl}
                     onClick={() => triggerAsset(asset)}
+                    isFavorite={favorites.includes(asset.id)}
+                    onToggleFavorite={(e) => toggleFavorite(asset.id, e)}
+                    savedSettings={assetSettings[asset.id] || {}}
+                    onSaveSettings={(id, settings) => {
+                      setAssetSettings(prev => {
+                        const next = { ...prev };
+                        if (!settings.targetSource && !settings.customDuration) {
+                          delete next[id];
+                        } else {
+                          next[id] = settings;
+                        }
+                        return next;
+                      });
+                    }}
                   />
                 );
               })}
@@ -591,14 +704,31 @@ function AssetCard({
   asset, 
   isActive, 
   baseUrl, 
-  onClick 
+  onClick,
+  isFavorite,
+  onToggleFavorite,
+  savedSettings,
+  onSaveSettings
 }: { 
   asset: MediaAsset; 
   isActive: boolean; 
   baseUrl: string; 
   onClick: () => void; 
+  isFavorite: boolean;
+  onToggleFavorite: (e: React.MouseEvent) => void;
+  savedSettings: { targetSource?: string; customDuration?: string };
+  onSaveSettings: (id: string, settings: { targetSource?: string; customDuration?: string }) => void;
 }) {
   const [imgError, setImgError] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+  const [tempSource, setTempSource] = useState(savedSettings.targetSource || '');
+  const [tempDuration, setTempDuration] = useState(savedSettings.customDuration || '');
+
+  // Keep state in sync if savedSettings changes from outside (e.g. reset)
+  useEffect(() => {
+    setTempSource(savedSettings.targetSource || '');
+    setTempDuration(savedSettings.customDuration || '');
+  }, [savedSettings]);
 
   // Type-specific fallback details
   const fallbackInfo = useMemo(() => {
@@ -621,6 +751,30 @@ function AssetCard({
         {asset.type}
       </span>
 
+      {/* Favorite button */}
+      <button 
+        type="button"
+        className={`asset-favorite-btn ${isFavorite ? 'active' : ''}`}
+        onClick={(e) => {
+          e.stopPropagation();
+          onToggleFavorite(e);
+        }}
+      >
+        <Star style={{ width: 12, height: 12, fill: isFavorite ? 'currentColor' : 'none' }} />
+      </button>
+
+      {/* Settings button */}
+      <button 
+        type="button"
+        className="asset-settings-btn"
+        onClick={(e) => {
+          e.stopPropagation();
+          setShowSettings(true);
+        }}
+      >
+        <Settings style={{ width: 12, height: 12 }} />
+      </button>
+
       <div className="asset-thumbnail-container">
         {thumbUrl && !imgError ? (
           <img 
@@ -636,7 +790,84 @@ function AssetCard({
 
       <div className="asset-info">
         <div className="asset-card-title">{asset.name}</div>
+        {savedSettings.targetSource && (
+          <div className="asset-category-text">
+            🎯 {savedSettings.targetSource}
+          </div>
+        )}
       </div>
+
+      {/* Slide-up Settings panel inside card */}
+      {showSettings && (
+        <div className="asset-card-settings" onClick={(e) => e.stopPropagation()}>
+          <div className="settings-header">
+            <span>Ajustes OBS</span>
+            <button 
+              type="button" 
+              className="settings-close-btn"
+              onClick={(e) => {
+                e.stopPropagation();
+                // Reset temp values
+                setTempSource(savedSettings.targetSource || '');
+                setTempDuration(savedSettings.customDuration || '');
+                setShowSettings(false);
+              }}
+            >
+              ×
+            </button>
+          </div>
+          <div className="settings-body">
+            <div className="form-group-mini">
+              <label>Fuente Destino OBS</label>
+              <input 
+                type="text" 
+                placeholder="Ej: Overlay_Main" 
+                value={tempSource}
+                onChange={e => setTempSource(e.target.value)}
+              />
+            </div>
+            <div className="form-group-mini">
+              <label>Duración (segs)</label>
+              <input 
+                type="number" 
+                min="0" 
+                placeholder="Ej: 5 (0 = default)" 
+                value={tempDuration}
+                onChange={e => setTempDuration(e.target.value)}
+              />
+            </div>
+            <div className="settings-footer">
+              <button 
+                type="button" 
+                className="btn-mini btn-reset"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setTempSource('');
+                  setTempDuration('');
+                  onSaveSettings(asset.id, {});
+                  setShowSettings(false);
+                }}
+              >
+                Reset
+              </button>
+              <button 
+                type="button" 
+                className="btn-mini btn-save"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onSaveSettings(asset.id, { 
+                    targetSource: tempSource.trim() || undefined, 
+                    customDuration: tempDuration.trim() || undefined 
+                  });
+                  setShowSettings(false);
+                }}
+              >
+                Guardar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
