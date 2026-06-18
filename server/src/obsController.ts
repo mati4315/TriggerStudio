@@ -105,7 +105,8 @@ export class OBSController {
     sceneName: string,
     sourceName: string,
     absoluteFilePath: string,
-    isVideo: boolean = true
+    isVideo: boolean = true,
+    mute: boolean = false
   ): Promise<{ success: boolean; error?: string; warning?: string }> {
     if (!this.isConnected) {
       console.warn('[OBS] Cannot play asset: Not connected to OBS.');
@@ -129,6 +130,17 @@ export class OBSController {
       }
 
       console.log(`[OBS] Source "${sourceName}" is of kind: "${inputKind}"`);
+
+      // Apply muting to the source if it is supported (audio/video/browser sources)
+      try {
+        await this.obs.call('SetInputMute', {
+          inputName: sourceName,
+          inputMuted: mute
+        });
+        console.log(`[OBS] Set mute state for "${sourceName}" to: ${mute}`);
+      } catch (err: any) {
+        // Source might not support muting/audio, ignore warning
+      }
 
       let warning: string | undefined;
 

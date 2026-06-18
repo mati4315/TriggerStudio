@@ -13,6 +13,7 @@ interface ClientMessage {
   duration?: number;   // Auto-hide duration in seconds
   sceneName?: string;
   sourceName?: string;
+  mute?: boolean;
 }
 
 export class TriggerWebSocketServer {
@@ -20,7 +21,7 @@ export class TriggerWebSocketServer {
   private obsController: OBSController;
   private mediaPath: string;
   private activeTimeouts: Map<string, NodeJS.Timeout> = new Map();
-  private activeAssets: Map<string, { asset: string; type: 'video' | 'image' | 'audio'; startedAt: number; category?: string }> = new Map();
+  private activeAssets: Map<string, { asset: string; type: 'video' | 'image' | 'audio'; startedAt: number; category?: string; mute?: boolean }> = new Map();
 
   constructor(server: Server, obsController: OBSController, mediaPath: string) {
     this.obsController = obsController;
@@ -211,7 +212,7 @@ export class TriggerWebSocketServer {
 
       // Audio is played as a media source in OBS (isVideo = true)
       const playAsVideo = isVideo || isAudio;
-      const result = await this.obsController.playAsset(sceneName, sourceName, resolvedPath, playAsVideo);
+      const result = await this.obsController.playAsset(sceneName, sourceName, resolvedPath, playAsVideo, msg.mute || false);
       if (result.success) {
         const isStaticImage = !isVideo && !isAudio && ext !== '.gif';
         const msgText = isStaticImage 
@@ -227,11 +228,12 @@ export class TriggerWebSocketServer {
           asset: fileName,
           type: isAudio ? 'audio' : (isVideo ? 'video' : 'image'),
           category: msg.category,
-          startedAt: Date.now()
+          startedAt: Date.now(),
+          mute: msg.mute
         });
 
         // Broadcast that it is playing
-        this.broadcastMediaStatus(sceneName, sourceName, 'playing', fileName, msg.category);
+        this.broadcastMediaStatus(sceneName, sourceName, 'playing', fileName, msg.category, msg.mute);
 
         // Handle auto-hide: enforce 2-second display limit only for static images
         const duration = isStaticImage ? 2 : (msg.duration || 0);
@@ -300,14 +302,15 @@ export class TriggerWebSocketServer {
     });
   }
 
-  private broadcastMediaStatus(sceneName: string, sourceName: string, state: 'playing' | 'hidden', assetName?: string, category?: string) {
+  private broadcastMediaStatus(sceneName: string, sourceName: string, state: 'playing' | 'hidden', assetName?: string, category?: string, mute?: boolean) {
     const msg = JSON.stringify({
       type: 'media_state',
       sceneName,
       sourceName,
       state,
       assetName,
-      category
+      category,
+      mute
     });
     this.wss.clients.forEach((client) => {
       if (client.readyState === WebSocket.OPEN) {

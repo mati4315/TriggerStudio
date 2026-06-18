@@ -70,7 +70,7 @@ export default function App() {
     }
   });
 
-  const [assetSettings, setAssetSettings] = useState<Record<string, { targetSource?: string; customDuration?: string }>>(() => {
+  const [assetSettings, setAssetSettings] = useState<Record<string, { targetSource?: string; customDuration?: string; mute?: boolean }>>(() => {
     try {
       const saved = localStorage.getItem('ts_asset_settings');
       return saved ? JSON.parse(saved) : {};
@@ -264,6 +264,7 @@ export default function App() {
     const duration = settings.customDuration 
       ? (parseInt(settings.customDuration) || 0)
       : (parseInt(manualDuration) || 0);
+    const mute = settings.mute || false;
 
     const payload = {
       action: 'play',
@@ -271,7 +272,8 @@ export default function App() {
       type: asset.type,
       category: asset.category,
       sourceName: targetSource,
-      duration: duration
+      duration: duration,
+      mute: mute
     };
 
     wsRef.current.send(JSON.stringify(payload));
@@ -284,6 +286,7 @@ export default function App() {
     let logMsg = `Disparando recurso: ${asset.name} (${asset.type})`;
     if (targetSource) logMsg += ` en la fuente "${targetSource}"`;
     if (duration > 0) logMsg += ` (duración: ${duration}s)`;
+    if (mute) logMsg += ` [Silenciado]`;
     addLog(logMsg, 'info');
   };
 
@@ -649,7 +652,7 @@ export default function App() {
                     onSaveSettings={(id, settings) => {
                       setAssetSettings(prev => {
                         const next = { ...prev };
-                        if (!settings.targetSource && !settings.customDuration) {
+                        if (!settings.targetSource && !settings.customDuration && !settings.mute) {
                           delete next[id];
                         } else {
                           next[id] = settings;
@@ -773,18 +776,20 @@ function AssetCard({
   onClick: () => void; 
   isFavorite: boolean;
   onToggleFavorite: (e: React.MouseEvent) => void;
-  savedSettings: { targetSource?: string; customDuration?: string };
-  onSaveSettings: (id: string, settings: { targetSource?: string; customDuration?: string }) => void;
+  savedSettings: { targetSource?: string; customDuration?: string; mute?: boolean };
+  onSaveSettings: (id: string, settings: { targetSource?: string; customDuration?: string; mute?: boolean }) => void;
 }) {
   const [imgError, setImgError] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [tempSource, setTempSource] = useState(savedSettings.targetSource || '');
   const [tempDuration, setTempDuration] = useState(savedSettings.customDuration || '');
+  const [tempMute, setTempMute] = useState(savedSettings.mute || false);
 
   // Keep state in sync if savedSettings changes from outside (e.g. reset)
   useEffect(() => {
     setTempSource(savedSettings.targetSource || '');
     setTempDuration(savedSettings.customDuration || '');
+    setTempMute(savedSettings.mute || false);
   }, [savedSettings]);
 
   // Type-specific fallback details
@@ -896,6 +901,7 @@ function AssetCard({
                 // Reset temp values
                 setTempSource(savedSettings.targetSource || '');
                 setTempDuration(savedSettings.customDuration || '');
+                setTempMute(savedSettings.mute || false);
                 setShowSettings(false);
               }}
             >
@@ -922,6 +928,56 @@ function AssetCard({
                 onChange={e => setTempDuration(e.target.value)}
               />
             </div>
+            {(asset.type === 'video' || asset.type === 'audio') && (
+              <div 
+                style={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  gap: '8px', 
+                  cursor: 'pointer', 
+                  userSelect: 'none',
+                  marginTop: '2px',
+                  marginBottom: '2px'
+                }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setTempMute(!tempMute);
+                }}
+              >
+                <input 
+                  type="checkbox" 
+                  id={`mute-${asset.id}`}
+                  checked={tempMute}
+                  onChange={(e) => {
+                    // Handled by parent click, but good to have
+                    setTempMute(e.target.checked);
+                  }}
+                  onClick={(e) => e.stopPropagation()}
+                  style={{ 
+                    width: '14px', 
+                    height: '14px', 
+                    cursor: 'pointer', 
+                    accentColor: 'var(--color-primary)', 
+                    margin: 0 
+                  }}
+                />
+                <label 
+                  htmlFor={`mute-${asset.id}`} 
+                  onClick={(e) => e.stopPropagation()}
+                  style={{ 
+                    cursor: 'pointer', 
+                    fontSize: '0.7rem', 
+                    color: 'var(--color-text-muted)', 
+                    fontWeight: 600,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px' 
+                  }}
+                >
+                  🔇 Silenciar audio
+                </label>
+              </div>
+            )}
             <div className="settings-footer">
               <button 
                 type="button" 
@@ -930,6 +986,7 @@ function AssetCard({
                   e.stopPropagation();
                   setTempSource('');
                   setTempDuration('');
+                  setTempMute(false);
                   onSaveSettings(asset.id, {});
                   setShowSettings(false);
                 }}
@@ -943,7 +1000,8 @@ function AssetCard({
                   e.stopPropagation();
                   onSaveSettings(asset.id, { 
                     targetSource: tempSource.trim() || undefined, 
-                    customDuration: tempDuration.trim() || undefined 
+                    customDuration: tempDuration.trim() || undefined,
+                    mute: tempMute || undefined
                   });
                   setShowSettings(false);
                 }}

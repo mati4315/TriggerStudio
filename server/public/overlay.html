@@ -60,7 +60,7 @@
           const msg = JSON.parse(event.data);
           if (msg.type === 'media_state') {
             if (msg.state === 'playing') {
-              showMedia(msg.assetName, msg.category, msg.sourceName);
+              showMedia(msg.assetName, msg.category, msg.sourceName, msg.mute);
             } else if (msg.state === 'hidden') {
               hideMedia();
             }
@@ -78,7 +78,7 @@
       };
     }
 
-    function showMedia(assetName, category, sourceName) {
+    function showMedia(assetName, category, sourceName, mute) {
       const ext = assetName.split('.').pop().toLowerCase();
       const isVideo = ['mp4', 'webm', 'ogg', 'mov', 'mkv'].includes(ext);
 
@@ -86,6 +86,7 @@
       videoPlayer.style.display = 'none';
       videoPlayer.pause();
       videoPlayer.onended = null;
+      videoPlayer.muted = !!mute;
       imagePlayer.style.display = 'none';
 
       const mediaUrl = '/media/' + assetName.split('/').map(encodeURIComponent).join('/');
