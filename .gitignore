@@ -19,3 +19,13 @@ secrets/
 config/*.json
 settings.json
 README-Spotify-install*
+*.exe
+*.dll
+*.pak
+*.bin
+*.asar
+*.iso
+*.zip
+*.7z
+*.tar
+*.gz
