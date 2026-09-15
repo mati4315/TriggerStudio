@@ -9,12 +9,13 @@ export interface MediaAsset {
   file: string; // Relative to MEDIA_PATH
   thumbnail?: string;
   category: string;
+  folder: string; // e.g. "videos", "videos/cumple", etc.
 }
 
 export class AssetScanner {
   private mediaPath: string;
-  private videoExtensions = ['.mp4', '.mkv', '.webm', '.avi', '.mov'];
-  private imageExtensions = ['.gif', '.png', '.jpg', '.jpeg', '.webp'];
+  private videoExtensions = ['.mp4', '.mkv', '.webm', '.avi', '.mov', '.m4v'];
+  private imageExtensions = ['.gif', '.png', '.jpg', '.jpeg', '.webp', '.bmp'];
   private audioExtensions = ['.mp3', '.wav', '.ogg', '.m4a', '.aac', '.flac'];
   private thumbnailGenerator: ThumbnailGenerator;
 
@@ -24,7 +25,7 @@ export class AssetScanner {
   }
 
   /**
-   * Scans the media folder and groups assets by category (subdirectory or "root")
+   * Scans the media folder recursively and groups assets by category and folder
    */
   public scan(): MediaAsset[] {
     const assets: MediaAsset[] = [];
@@ -34,19 +35,7 @@ export class AssetScanner {
     }
 
     try {
-      // 1. Scan root directory
-      this.scanDir(this.mediaPath, '', 'General', assets);
-
-      // 2. Scan standard subdirectories
-      const subdirs = ['videos', 'gifs', 'memes', 'overlays', 'sounds', 'noticias'];
-      for (const subdir of subdirs) {
-        const fullSubdirPath = path.join(this.mediaPath, subdir);
-        if (fs.existsSync(fullSubdirPath) && fs.statSync(fullSubdirPath).isDirectory()) {
-          // Capitalize the subdir name for category display
-          const category = subdir.charAt(0).toUpperCase() + subdir.slice(1);
-          this.scanDir(fullSubdirPath, subdir, category, assets);
-        }
-      }
+      this.scanRecursive(this.mediaPath, '', assets);
     } catch (err) {
       console.error('[Scanner] Error scanning assets directory:', err);
     }
@@ -54,14 +43,19 @@ export class AssetScanner {
     return assets;
   }
 
-  private scanDir(dirPath: string, relativePrefix: string, category: string, assets: MediaAsset[]) {
-    const items = fs.readdirSync(dirPath);
+  private scanRecursive(currentDir: string, relativePrefix: string, assets: MediaAsset[]) {
+    const items = fs.readdirSync(currentDir);
 
     for (const item of items) {
-      const fullPath = path.join(dirPath, item);
+      if (item === '.thumbnails' || item.startsWith('.')) continue;
+
+      const fullPath = path.join(currentDir, item);
       const stat = fs.statSync(fullPath);
 
-      if (stat.isFile()) {
+      if (stat.isDirectory()) {
+        const nextRelative = relativePrefix ? `${relativePrefix}/${item}` : item;
+        this.scanRecursive(fullPath, nextRelative, assets);
+      } else if (stat.isFile()) {
         const ext = path.extname(item).toLowerCase();
         let type: 'video' | 'image' | 'audio' | null = null;
 
@@ -75,11 +69,18 @@ export class AssetScanner {
 
         if (type) {
           const relativeFile = relativePrefix ? path.join(relativePrefix, item) : item;
-          // Generate a clean id and name
           const cleanName = path.basename(item, ext).replace(/[_-]/g, ' ');
-          const id = Buffer.from(relativeFile).toString('base64').replace(/=/g, '');
+          const id = Buffer.from(relativeFile.replace(/\\/g, '/')).toString('base64').replace(/=/g, '');
 
-          // Get or trigger thumbnail generation for images and videos
+          // Determine category (top-level directory or General)
+          let category = 'General';
+          let folder = relativePrefix ? relativePrefix.replace(/\\/g, '/') : 'general';
+          
+          if (relativePrefix) {
+            const rootPart = relativePrefix.split(/[\\/]/)[0];
+            category = rootPart.charAt(0).toUpperCase() + rootPart.slice(1);
+          }
+
           let thumbnail: string | undefined = undefined;
           if (type === 'video' || type === 'image') {
             thumbnail = this.thumbnailGenerator.getOrGenerate(fullPath, id, type);
@@ -91,7 +92,8 @@ export class AssetScanner {
             type,
             file: relativeFile.replace(/\\/g, '/'),
             thumbnail,
-            category
+            category,
+            folder
           });
         }
       }

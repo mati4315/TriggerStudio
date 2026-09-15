@@ -153,6 +153,7 @@ export class OBSController {
           inputSettings: {
             local_file: normalizedPath,
             looping: false,
+            clear_on_media_end: true,
             restart_on_active: true
           }
         });
@@ -176,6 +177,7 @@ export class OBSController {
             inputSettings: {
               local_file: normalizedPath,
               looping: false,
+              clear_on_media_end: true,
               restart_on_active: true
             }
           });
@@ -199,10 +201,21 @@ export class OBSController {
         });
         sceneItemId = idResult.sceneItemId;
       } catch (err) {
-        const typeSuggestion = isVideo ? 'Multimedia (ffmpeg_source)' : 'Imagen (image_source)';
-        const errorMsg = `La fuente "${sourceName}" no existe en la escena "${sceneName}". Por favor, agrega una fuente de tipo "${typeSuggestion}" llamada "${sourceName}" en tu OBS.`;
-        console.error(`[OBS] ${errorMsg}`);
-        return { success: false, error: errorMsg };
+        // Intenta vincular la fuente existente a la escena actual automáticamente
+        try {
+          const createResult = await this.obs.call('CreateSceneItem', {
+            sceneName: sceneName,
+            sourceName: sourceName,
+            sceneItemEnabled: true
+          });
+          sceneItemId = createResult.sceneItemId;
+          console.log(`[OBS] Fuente "${sourceName}" vinculada automáticamente a la escena "${sceneName}" (ID: ${sceneItemId})`);
+        } catch (createErr) {
+          const typeSuggestion = isVideo ? 'Multimedia (ffmpeg_source)' : 'Imagen (image_source)';
+          const errorMsg = `La fuente "${sourceName}" no existe en la escena "${sceneName}". Por favor, agrega una fuente de tipo "${typeSuggestion}" llamada "${sourceName}" en tu OBS.`;
+          console.error(`[OBS] ${errorMsg}`);
+          return { success: false, error: errorMsg };
+        }
       }
 
       // 3. Enable visibility (show source)
@@ -259,13 +272,30 @@ export class OBSController {
   }
 
   /**
-   * Hide a source in OBS
+   * Stop media playback on a specific source without disabling or hiding the source in OBS
    */
-  public async hideAsset(sceneName: string, sourceName: string): Promise<boolean> {
+  public async stopAsset(sourceName: string): Promise<boolean> {
+    if (!this.isConnected) return false;
+    try {
+      await this.obs.call('TriggerMediaInputAction', {
+        inputName: sourceName,
+        mediaAction: 'OBS_WEBSOCKET_MEDIA_INPUT_ACTION_STOP'
+      });
+      console.log(`[OBS] Stopped media playback on source "${sourceName}"`);
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  /**
+   * Hide/stop a source in OBS without disabling the scene item unless explicitly requested
+   */
+  public async hideAsset(sceneName: string, sourceName: string, disableSceneItem: boolean = false): Promise<boolean> {
     if (!this.isConnected) return false;
 
     try {
-      // Try to stop media playback if it's a media source (silent fail if it's an image/gif source)
+      // Try to stop media playback if it's a media source
       try {
         await this.obs.call('TriggerMediaInputAction', {
           inputName: sourceName,
@@ -275,35 +305,38 @@ export class OBSController {
         // Ignore errors for non-media inputs
       }
 
-      // Check if source exists in the scene first to avoid throwing general error
-      let sceneItemId: number;
-      try {
-        const idResult = await this.obs.call('GetSceneItemId', {
-          sceneName: sceneName,
-          sourceName: sourceName
-        });
-        sceneItemId = idResult.sceneItemId;
-      } catch (err) {
-        console.log(`[OBS] Source "${sourceName}" is not in Scene "${sceneName}" (cannot hide)`);
-        return false;
+      if (disableSceneItem) {
+        // Check if source exists in the scene first
+        let sceneItemId: number;
+        try {
+          const idResult = await this.obs.call('GetSceneItemId', {
+            sceneName: sceneName,
+            sourceName: sourceName
+          });
+          sceneItemId = idResult.sceneItemId;
+          await this.obs.call('SetSceneItemEnabled', {
+            sceneName: sceneName,
+            sceneItemId: sceneItemId,
+            sceneItemEnabled: false
+          });
+          console.log(`[OBS] Hid and disabled source "${sourceName}" in scene "${sceneName}"`);
+        } catch (err) {
+          console.log(`[OBS] Source "${sourceName}" is not in Scene "${sceneName}" (cannot hide)`);
+          return false;
+        }
+      } else {
+        console.log(`[OBS] Stopped playback for source "${sourceName}" (source kept enabled)`);
       }
 
-      await this.obs.call('SetSceneItemEnabled', {
-        sceneName: sceneName,
-        sceneItemId: sceneItemId,
-        sceneItemEnabled: false
-      });
-
-      console.log(`[OBS] Hid and stopped source "${sourceName}" in scene "${sceneName}"`);
       return true;
     } catch (error: any) {
-      console.error('[OBS] Error hiding asset:', error.message || error);
+      console.error('[OBS] Error hiding/stopping asset:', error.message || error);
       return false;
     }
   }
 
   /**
-   * Stop and hide all sources in the current active scene (or a specific scene)
+   * Emergency Stop: Stop playback of all media inputs without disabling or hiding any source in OBS
    */
   public async stopAllAssets(sceneName?: string): Promise<boolean> {
     if (!this.isConnected) return false;
@@ -315,15 +348,14 @@ export class OBSController {
         targetScene = sceneList.currentProgramSceneName;
       }
 
-      console.log(`[OBS] Stopping and hiding all assets in scene "${targetScene}"`);
+      console.log(`[OBS] Emergency Stop: stopping all playback in scene "${targetScene}" (sources remain visible/enabled)`);
 
       const { sceneItems } = await this.obs.call('GetSceneItemList', { sceneName: targetScene });
 
       for (const item of (sceneItems as any[])) {
         const sourceName = item.sourceName as string;
-        const itemId = item.sceneItemId as number;
 
-        // Try to stop media if it's a media input
+        // Stop media if it's a media input
         try {
           await this.obs.call('TriggerMediaInputAction', {
             inputName: sourceName,
@@ -331,25 +363,6 @@ export class OBSController {
           });
         } catch (e) {
           // Ignore if it's not a media input
-        }
-
-        // Hide the item only if it is an overlay, trigger, or matches default source names
-        const lowerName = sourceName.toLowerCase();
-        const isOverlayOrTrigger = lowerName.includes('overlay') || 
-                                   lowerName.includes('trigger') || 
-                                   sourceName === 'Overlay_Main' || 
-                                   sourceName === 'GIF_Overlay';
-
-        if (isOverlayOrTrigger) {
-          try {
-            await this.obs.call('SetSceneItemEnabled', {
-              sceneName: targetScene,
-              sceneItemId: itemId,
-              sceneItemEnabled: false
-            });
-          } catch (e) {
-            // Ignore
-          }
         }
       }
 

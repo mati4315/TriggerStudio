@@ -1,0 +1,1567 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TriggerStudio - Panel de Control</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-gradient: radial-gradient(circle at 50% 0%, #1e1b4b 0%, #09090b 100%);
+      --panel-bg: rgba(15, 15, 24, 0.75);
+      --border-color: rgba(255, 255, 255, 0.1);
+      --border-hover: rgba(99, 102, 241, 0.5);
+      --text-main: #ffffff;
+      --text-secondary: #e2e8f0;
+      --text-muted: #94a3b8;
+      --primary: #6366f1;
+      --primary-hover: #4f46e5;
+      --success: #10b981;
+      --danger: #ef4444;
+      --danger-hover: #dc2626;
+      --warning: #f59e0b;
+      --card-bg: rgba(255, 255, 255, 0.04);
+      --card-hover: rgba(255, 255, 255, 0.08);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+      background: var(--bg-gradient);
+      background-attachment: fixed;
+      color: var(--text-main);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 2rem 1.5rem;
+      overflow-x: hidden;
+    }
+
+    header {
+      width: 100%;
+      max-width: 1280px;
+      margin-bottom: 2rem;
+      text-align: center;
+      position: relative;
+    }
+
+    h1 {
+      font-size: 2.4rem;
+      font-weight: 800;
+      letter-spacing: -0.04em;
+      background: linear-gradient(135deg, #c7d2fe 0%, #818cf8 50%, #6366f1 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 0.35rem;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .badge-remote {
+      background: rgba(99, 102, 241, 0.2);
+      border: 1px solid rgba(99, 102, 241, 0.4);
+      color: #a5b4fc;
+      font-size: 0.75rem;
+      padding: 3px 8px;
+      border-radius: 8px;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      vertical-align: middle;
+      -webkit-text-fill-color: #a5b4fc;
+    }
+
+    .subtitle {
+      color: var(--text-muted);
+      font-size: 0.95rem;
+      font-weight: 400;
+    }
+
+    .main-container {
+      width: 100%;
+      max-width: 1280px;
+      display: grid;
+      grid-template-columns: 320px 1fr;
+      gap: 1.5rem;
+      align-items: start;
+    }
+
+    @media (max-width: 860px) {
+      .main-container {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* Paneles Glassmorphic */
+    .panel {
+      background: var(--panel-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 20px;
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      padding: 1.5rem;
+      box-shadow: 0 12px 36px rgba(0, 0, 0, 0.45);
+    }
+
+    .panel-title {
+      font-size: 1.05rem;
+      font-weight: 700;
+      margin-bottom: 1.2rem;
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      padding-bottom: 0.75rem;
+      color: var(--text-secondary);
+    }
+
+    /* Estados de conexión */
+    .status-group {
+      display: flex;
+      flex-direction: column;
+      gap: 0.85rem;
+      margin-bottom: 1.25rem;
+    }
+
+    .status-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: rgba(255, 255, 255, 0.03);
+      padding: 0.8rem 1.1rem;
+      border-radius: 12px;
+      border: 1px solid var(--border-color);
+    }
+
+    .status-label {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      font-weight: 600;
+    }
+
+    .status-value {
+      font-size: 0.85rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      color: var(--text-main);
+    }
+
+    .indicator {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--text-muted);
+      display: inline-block;
+      box-shadow: 0 0 8px currentColor;
+    }
+
+    .indicator.online {
+      background: var(--success);
+      color: var(--success);
+    }
+
+    .indicator.offline {
+      background: var(--danger);
+      color: var(--danger);
+    }
+
+    /* Botones */
+    .btn {
+      width: 100%;
+      padding: 0.85rem 1.2rem;
+      border-radius: 12px;
+      font-size: 0.95rem;
+      font-weight: 700;
+      border: none;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      font-family: inherit;
+    }
+
+    .btn-primary {
+      background: var(--primary);
+      color: #ffffff;
+      box-shadow: 0 4px 14px rgba(99, 102, 241, 0.35);
+    }
+
+    .btn-primary:hover {
+      background: var(--primary-hover);
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(99, 102, 241, 0.5);
+    }
+
+    .btn-danger {
+      background: var(--danger);
+      color: #ffffff;
+      box-shadow: 0 4px 14px rgba(239, 68, 68, 0.35);
+    }
+
+    .btn-danger:hover {
+      background: var(--danger-hover);
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(239, 68, 68, 0.5);
+    }
+
+    .btn-danger.stopping {
+      background: var(--warning);
+      cursor: not-allowed;
+      animation: pulse-warn 1s infinite alternate;
+    }
+
+    .btn-danger.stopped {
+      background: var(--success);
+    }
+
+    @keyframes pulse-warn {
+      0% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.5); }
+      100% { box-shadow: 0 0 0 10px rgba(245, 158, 11, 0); }
+    }
+
+    /* Formularios */
+    .form-field {
+      margin-bottom: 1rem;
+    }
+
+    .form-field label {
+      display: block;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      margin-bottom: 0.4rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .input-text {
+      width: 100%;
+      padding: 0.75rem 1rem;
+      background: rgba(0, 0, 0, 0.35);
+      border: 1px solid var(--border-color);
+      border-radius: 10px;
+      color: var(--text-main);
+      font-family: inherit;
+      font-size: 0.9rem;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+    .input-text:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 10px rgba(99, 102, 241, 0.25);
+    }
+
+    .input-text::placeholder {
+      color: #64748b;
+    }
+
+    .row-cols {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 0.5rem;
+    }
+
+    .radio-card {
+      background: rgba(0, 0, 0, 0.25);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 0.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.4rem;
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--text-secondary);
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .radio-card:hover {
+      background: rgba(255, 255, 255, 0.05);
+      border-color: rgba(255, 255, 255, 0.2);
+    }
+
+    .radio-card input {
+      accent-color: var(--primary);
+    }
+
+    /* Galería y Controles Superiores */
+    .gallery-header {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      padding-bottom: 1.25rem;
+      margin-bottom: 1.25rem;
+    }
+
+    .gallery-top-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 0.85rem;
+      flex-wrap: wrap;
+    }
+
+    .search-box {
+      flex: 1;
+      min-width: 220px;
+      position: relative;
+    }
+
+    .search-box input {
+      padding-left: 2.4rem;
+    }
+
+    .search-icon {
+      position: absolute;
+      left: 0.9rem;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 1rem;
+      color: var(--text-muted);
+      pointer-events: none;
+    }
+
+    /* Botón de toggle Carpetas */
+    .btn-toggle-folders {
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid var(--border-color);
+      color: var(--text-secondary);
+      padding: 0.55rem 1.1rem;
+      border-radius: 10px;
+      font-size: 0.85rem;
+      font-weight: 700;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      transition: all 0.2s;
+      font-family: inherit;
+      white-space: nowrap;
+    }
+
+    .btn-toggle-folders:hover {
+      background: rgba(255, 255, 255, 0.12);
+      border-color: var(--primary);
+      color: #ffffff;
+    }
+
+    .btn-toggle-folders.active {
+      background: rgba(99, 102, 241, 0.25);
+      border-color: var(--primary);
+      color: #a5b4fc;
+      box-shadow: 0 0 14px rgba(99, 102, 241, 0.35);
+    }
+
+    .filter-pills {
+      display: flex;
+      gap: 0.5rem;
+      overflow-x: auto;
+      padding-bottom: 2px;
+      scrollbar-width: none;
+      flex-wrap: wrap;
+    }
+
+    .filter-pills::-webkit-scrollbar {
+      display: none;
+    }
+
+    .pill {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--border-color);
+      color: var(--text-muted);
+      padding: 0.45rem 1rem;
+      border-radius: 20px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      white-space: nowrap;
+      font-family: inherit;
+    }
+
+    .pill:hover {
+      color: var(--text-main);
+      background: rgba(255, 255, 255, 0.1);
+      border-color: rgba(255, 255, 255, 0.2);
+    }
+
+    .pill.active {
+      background: var(--primary);
+      color: #ffffff;
+      border-color: var(--primary);
+      box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
+    }
+
+    /* Barra de Navegación / Breadcrumbs estilo Explorador de Windows */
+    .breadcrumbs-bar {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      background: rgba(0, 0, 0, 0.3);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 12px;
+      padding: 0.6rem 1rem;
+      margin-bottom: 1.25rem;
+      flex-wrap: wrap;
+    }
+
+    .btn-back-crumb {
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      color: var(--text-main);
+      font-weight: 700;
+      font-size: 0.82rem;
+      padding: 0.35rem 0.8rem;
+      border-radius: 8px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      transition: all 0.2s;
+      font-family: inherit;
+    }
+
+    .btn-back-crumb:hover {
+      background: var(--primary);
+      border-color: var(--primary);
+    }
+
+    .crumbs-list {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--text-muted);
+    }
+
+    .crumb-item {
+      cursor: pointer;
+      color: var(--text-secondary);
+      transition: color 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 0.3rem;
+    }
+
+    .crumb-item:hover {
+      color: #a5b4fc;
+      text-decoration: underline;
+    }
+
+    .crumb-item.current {
+      color: #ffffff;
+      font-weight: 800;
+      cursor: default;
+      text-decoration: none;
+    }
+
+    .crumb-separator {
+      color: var(--text-muted);
+      opacity: 0.6;
+    }
+
+    /* Tarjetas de Carpetas (Estilo Windows Explorer) */
+    .folder-card {
+      background: linear-gradient(145deg, rgba(99, 102, 241, 0.12) 0%, rgba(30, 27, 75, 0.4) 100%);
+      border: 1px solid rgba(129, 140, 248, 0.35);
+      border-radius: 16px;
+      padding: 1.15rem 1rem;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      cursor: pointer;
+      aspect-ratio: 0.95;
+      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+      position: relative;
+      user-select: none;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+    }
+
+    .folder-card:hover {
+      background: linear-gradient(145deg, rgba(99, 102, 241, 0.25) 0%, rgba(49, 46, 129, 0.65) 100%);
+      border-color: rgba(165, 180, 252, 0.65);
+      transform: translateY(-4px);
+      box-shadow: 0 10px 25px rgba(99, 102, 241, 0.35);
+    }
+
+    .folder-card-tag {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      font-size: 0.62rem;
+      font-weight: 800;
+      padding: 2px 6px;
+      border-radius: 6px;
+      background: rgba(99, 102, 241, 0.25);
+      color: #a5b4fc;
+      border: 1px solid rgba(165, 180, 252, 0.3);
+      letter-spacing: 0.05em;
+    }
+
+    .folder-card-icon {
+      font-size: 3.2rem;
+      margin-bottom: 0.5rem;
+      filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.5));
+      transition: transform 0.25s ease;
+    }
+
+    .folder-card:hover .folder-card-icon {
+      transform: scale(1.1);
+    }
+
+    .folder-card-name {
+      font-size: 0.92rem;
+      font-weight: 700;
+      color: #ffffff;
+      margin-bottom: 0.25rem;
+      word-break: break-word;
+    }
+
+    .folder-card-count {
+      font-size: 0.72rem;
+      font-weight: 600;
+      color: #a5b4fc;
+      background: rgba(99, 102, 241, 0.2);
+      padding: 2px 8px;
+      border-radius: 10px;
+    }
+
+    /* Grid de tarjetas multimedia */
+    .assets-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+      gap: 1.25rem;
+      max-height: 62vh;
+      overflow-y: auto;
+      padding-right: 0.4rem;
+    }
+
+    .assets-grid::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    .assets-grid::-webkit-scrollbar-track {
+      background: rgba(0, 0, 0, 0.15);
+      border-radius: 4px;
+    }
+
+    .assets-grid::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.15);
+      border-radius: 4px;
+    }
+
+    .assets-grid::-webkit-scrollbar-thumb:hover {
+      background: rgba(255, 255, 255, 0.3);
+    }
+
+    .asset-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 16px;
+      padding: 1rem;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: space-between;
+      text-align: center;
+      cursor: pointer;
+      position: relative;
+      overflow: hidden;
+      aspect-ratio: 0.95;
+      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+      user-select: none;
+    }
+
+    .asset-card:hover {
+      background: var(--card-hover);
+      border-color: var(--border-hover);
+      transform: translateY(-4px);
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
+    }
+
+    .asset-card.playing {
+      border-color: var(--success);
+      box-shadow: 0 0 20px rgba(16, 185, 129, 0.45);
+      background: rgba(16, 185, 129, 0.08);
+      transform: scale(1.03);
+    }
+
+    .asset-card.playing::after {
+      content: '● EN VIVO';
+      position: absolute;
+      bottom: 8px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 0.65rem;
+      font-weight: 800;
+      color: #ffffff;
+      background: var(--success);
+      padding: 2px 10px;
+      border-radius: 12px;
+      letter-spacing: 0.06em;
+      z-index: 2;
+      box-shadow: 0 2px 8px rgba(16, 185, 129, 0.5);
+    }
+
+    .asset-thumbnail-box {
+      width: 100%;
+      height: 96px;
+      border-radius: 10px;
+      background: rgba(0, 0, 0, 0.35);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      margin-bottom: 0.65rem;
+      position: relative;
+    }
+
+    .asset-thumbnail {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      transition: transform 0.3s ease;
+    }
+
+    .asset-card:hover .asset-thumbnail {
+      transform: scale(1.08);
+    }
+
+    .asset-icon-fallback {
+      font-size: 2.4rem;
+      filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.5));
+    }
+
+    .asset-name {
+      font-size: 0.88rem;
+      font-weight: 600;
+      color: var(--text-main);
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+      word-break: break-word;
+      line-height: 1.35;
+      margin-bottom: 0.25rem;
+    }
+
+    .asset-folder-subtext {
+      font-size: 0.68rem;
+      font-weight: 600;
+      color: #818cf8;
+      margin-bottom: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+    }
+
+    .asset-tag {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      font-size: 0.65rem;
+      font-weight: 800;
+      padding: 2px 6px;
+      border-radius: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      z-index: 2;
+      backdrop-filter: blur(8px);
+    }
+
+    .tag-video {
+      background: rgba(99, 102, 241, 0.25);
+      color: #a5b4fc;
+      border: 1px solid rgba(165, 180, 252, 0.3);
+    }
+
+    .tag-noticia {
+      background: rgba(239, 68, 68, 0.25);
+      color: #fca5a5;
+      border: 1px solid rgba(252, 165, 165, 0.35);
+    }
+
+    .tag-image {
+      background: rgba(244, 114, 182, 0.25);
+      color: #f472b6;
+      border: 1px solid rgba(244, 114, 182, 0.3);
+    }
+
+    .tag-audio {
+      background: rgba(16, 185, 129, 0.25);
+      color: #6ee7b7;
+      border: 1px solid rgba(110, 231, 183, 0.3);
+    }
+
+    /* Toggle de silencio directo en la tarjeta */
+    .audio-badge {
+      position: absolute;
+      top: 8px;
+      left: 8px;
+      z-index: 2;
+      font-size: 0.75rem;
+      padding: 3px 6px;
+      border-radius: 6px;
+      background: rgba(0, 0, 0, 0.65);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      gap: 3px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .audio-badge:hover {
+      background: rgba(0, 0, 0, 0.9);
+      border-color: var(--primary);
+      color: #ffffff;
+    }
+
+    .audio-badge.unmuted {
+      color: #34d399;
+      border-color: rgba(52, 211, 153, 0.4);
+    }
+
+    /* Panel de logs inferior */
+    .logs-panel {
+      grid-column: 1 / -1;
+      margin-top: 1.5rem;
+    }
+
+    .logs-container {
+      background: rgba(0, 0, 0, 0.4);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 1rem;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      height: 140px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 0.3rem;
+    }
+
+    .log-entry {
+      line-height: 1.4;
+    }
+    .log-success { color: #34d399; }
+    .log-error { color: #f87171; }
+    .log-info { color: #818cf8; }
+    .log-warning { color: #fbbf24; }
+
+    /* Estado vacío */
+    .empty-state {
+      grid-column: 1 / -1;
+      background: rgba(245, 158, 11, 0.05);
+      border: 1px dashed rgba(245, 158, 11, 0.3);
+      padding: 3rem 2rem;
+      border-radius: 20px;
+      text-align: center;
+      color: var(--text-muted);
+    }
+
+    .empty-state-icon {
+      font-size: 3rem;
+      margin-bottom: 0.8rem;
+    }
+
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.75);
+      backdrop-filter: blur(6px);
+      z-index: 1000;
+      display: none;
+      align-items: center;
+      justify-content: center;
+    }
+    .modal-box {
+      background: #131722;
+      border: 1px solid rgba(99, 102, 241, 0.4);
+      border-radius: 16px;
+      padding: 1.8rem;
+      width: 90%;
+      max-width: 440px;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6);
+    }
+    .modal-title {
+      font-size: 1.15rem;
+      font-weight: 700;
+      margin-bottom: 0.8rem;
+      color: #ffffff;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .modal-actions {
+      display: flex;
+      gap: 0.75rem;
+      margin-top: 1.25rem;
+    }
+    .btn-cfg {
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      color: #e2e8f0;
+      padding: 0.35rem 0.65rem;
+      border-radius: 8px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.3rem;
+      transition: all 0.2s;
+    }
+    .btn-cfg:hover {
+      background: rgba(99, 102, 241, 0.25);
+      border-color: var(--primary);
+      color: #ffffff;
+    }
+  </style>
+</head>
+<body>
+  <div class="modal-overlay" id="server-modal">
+    <div class="modal-box">
+      <div class="modal-title">⚙️ Conexión del Servidor</div>
+      <div class="form-field">
+        <label for="cfg-server-ip">Host / IP del Servidor (con puerto)</label>
+        <input type="text" id="cfg-server-ip" class="input-text" placeholder="Ej: localhost:2188 o 192.168.1.50:2188">
+        <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.4rem;">
+          En la misma PC usa <b>localhost:2188</b>. Desde otra notebook usa la IP local (ej: <b>192.168.1.50:2188</b>).
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-primary" id="btn-save-server-cfg">Guardar y Conectar</button>
+        <button class="btn" style="background: rgba(255,255,255,0.1); color: #fff;" id="btn-cancel-server-cfg">Cancelar</button>
+      </div>
+    </div>
+  </div>
+
+  <header>
+    <h1>TriggerStudio <span class="badge-remote">REMOTO</span></h1>
+    <div class="subtitle">Panel de Control de OBS Studio en Red Local</div>
+  </header>
+
+  <div class="main-container">
+    <!-- Barra lateral: Estado y Acciones Rápidas -->
+    <div style="display: flex; flex-direction: column; gap: 1.5rem;">
+      <div class="panel">
+        <div class="panel-title" style="display: flex; justify-content: space-between; align-items: center;">
+          <span>📡 Estado de Conexión</span>
+          <button class="btn-cfg" id="btn-open-server-cfg" title="Configurar IP del servidor Trigger Studio">⚙️ IP Servidor</button>
+        </div>
+        <div class="status-group">
+          <div class="status-item">
+            <span class="status-label">Servidor</span>
+            <span class="status-value" id="status-server">
+              <span class="indicator offline"></span> Desconectado
+            </span>
+          </div>
+          <div class="status-item">
+            <span class="status-label">OBS Studio</span>
+            <span class="status-value" id="status-obs">
+              <span class="indicator offline"></span> Desconectado
+            </span>
+          </div>
+        </div>
+        <button class="btn btn-danger" id="btn-stop-all" title="Parada de emergencia: Detiene todas las reproducciones de inmediato sin ocultar la fuente en OBS">🛑 Parar Todo (Stop)</button>
+      </div>
+
+      <div class="panel">
+        <div class="panel-title">🧪 Disparador Manual</div>
+        <div class="form-field">
+          <label for="input-filename">Nombre de Archivo</label>
+          <input type="text" id="input-filename" class="input-text" placeholder="Ej: boom.mp4, risa.gif">
+        </div>
+        <div class="form-field">
+          <label>Tipo de Contenido</label>
+          <div class="row-cols">
+            <label class="radio-card">
+              <input type="radio" name="media-type" value="video" checked> Video
+            </label>
+            <label class="radio-card">
+              <input type="radio" name="media-type" value="image"> Imagen
+            </label>
+            <label class="radio-card">
+              <input type="radio" name="media-type" value="audio"> Audio
+            </label>
+          </div>
+        </div>
+        <div class="form-field">
+          <label for="input-duration">Duración (segundos, 0 = auto)</label>
+          <input type="number" id="input-duration" class="input-text" min="0" value="0">
+        </div>
+        <button class="btn btn-primary" id="btn-trigger-manual">🚀 Disparar Manual</button>
+      </div>
+    </div>
+
+    <!-- Contenido principal: Galería Multimedia con Explorador de Carpetas -->
+    <div class="panel">
+      <div class="gallery-header">
+        <div class="gallery-top-row">
+          <span class="panel-title" style="margin: 0; padding: 0; border: none;">🗂️ Galería Multimedia</span>
+          
+          <div style="display: flex; gap: 0.6rem; align-items: center;">
+            <!-- Botón para Mostrar / Ocultar Carpetas (Estilo Windows Explorer) -->
+            <button class="btn-toggle-folders" id="btn-toggle-folders" title="Alternar entre ver las carpetas navegables o todos los archivos juntos">
+              📁 Carpetas: Activadas
+            </button>
+            <button class="btn btn-primary" id="btn-refresh" style="width: auto; padding: 0.55rem 1rem; font-size: 0.85rem; border-radius: 10px;">
+              🔄 Actualizar
+            </button>
+          </div>
+        </div>
+
+        <div class="gallery-top-row">
+          <div class="search-box">
+            <span class="search-icon">🔍</span>
+            <input type="text" id="search-input" class="input-text" placeholder="Buscar por nombre o carpeta...">
+          </div>
+          <div class="filter-pills" id="filter-pills">
+            <button class="pill active" data-category="all">Todos</button>
+            <button class="pill" data-category="video">Videos</button>
+            <button class="pill" data-category="noticia">Noticias</button>
+            <button class="pill" data-category="audio">Audios</button>
+            <button class="pill" data-category="image">GIFs / Fotos</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Barra de navegación de carpetas (Breadcrumbs) -->
+      <div class="breadcrumbs-bar" id="breadcrumbs-bar" style="display: none;">
+        <button class="btn-back-crumb" id="btn-back-crumb">⬅️ Volver</button>
+        <div class="crumbs-list" id="crumbs-list"></div>
+      </div>
+
+      <!-- Grid de elementos (Archivos y Carpetas) -->
+      <div class="assets-grid" id="assets-grid">
+        <!-- Renderizado dinámico -->
+      </div>
+    </div>
+
+    <!-- Panel de Logs Inferior -->
+    <div class="panel logs-panel">
+      <div class="panel-title">📋 Registro de Eventos en Vivo</div>
+      <div class="logs-container" id="logs-container">
+        <div class="log-entry log-info">[Sistema] Conectando a Trigger Studio...</div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const statusServer = document.getElementById('status-server');
+    const statusObs = document.getElementById('status-obs');
+    const assetsGrid = document.getElementById('assets-grid');
+    const logsContainer = document.getElementById('logs-container');
+    const inputFilename = document.getElementById('input-filename');
+    const inputDuration = document.getElementById('input-duration');
+    const searchInput = document.getElementById('search-input');
+    const filterPills = document.getElementById('filter-pills');
+    const btnToggleFolders = document.getElementById('btn-toggle-folders');
+    const breadcrumbsBar = document.getElementById('breadcrumbs-bar');
+    const btnBackCrumb = document.getElementById('btn-back-crumb');
+    const crumbsList = document.getElementById('crumbs-list');
+
+    let allAssets = [];
+    let currentCategoryFilter = 'all';
+    let searchQuery = '';
+    let ws;
+    
+    // Ruta actual de navegación dentro de carpetas (ej. '' es la raíz, 'videos', 'videos/cumple')
+    let currentNavPath = '';
+    
+    // Modo de visualización:
+    // true = Muestra carpetas como en Windows (hacer clic para entrar).
+    // false = Muestra todos los archivos planos uno al lado del otro.
+    let showFolders = localStorage.getItem('trigger_show_folders') !== 'false';
+    let customMutes = JSON.parse(localStorage.getItem('trigger_custom_mutes') || '{}');
+
+    function updateFolderButtonState() {
+      if (showFolders) {
+        btnToggleFolders.classList.add('active');
+        btnToggleFolders.innerHTML = '📁 Carpetas: <b>Activadas</b>';
+      } else {
+        btnToggleFolders.classList.remove('active');
+        btnToggleFolders.innerHTML = '📋 Carpetas: <b>Ocultas (Plano)</b>';
+      }
+    }
+
+    btnToggleFolders.onclick = () => {
+      showFolders = !showFolders;
+      localStorage.setItem('trigger_show_folders', showFolders.toString());
+      updateFolderButtonState();
+      // Si desactiva carpetas, reseteamos la ruta para ver todo
+      if (!showFolders) {
+        currentNavPath = '';
+      }
+      renderAssets();
+      log(showFolders ? 'Modo carpetas activado (Haz 1 clic en una carpeta para entrar) 📁' : 'Modo plano activado (todos los archivos juntos) 📋', 'info');
+    };
+
+    function log(message, type = 'info') {
+      const date = new Date().toLocaleTimeString();
+      const entry = document.createElement('div');
+      entry.className = `log-entry log-${type}`;
+      entry.textContent = `[${date}] ${message}`;
+      logsContainer.appendChild(entry);
+      logsContainer.scrollTop = logsContainer.scrollHeight;
+    }
+
+    function getServerHost() {
+      if (window.location.host && !window.location.protocol.startsWith('file')) {
+        return window.location.host;
+      }
+      return localStorage.getItem('trigger_server_host') || 'localhost:2188';
+    }
+
+    function getServerOrigin() {
+      const host = getServerHost();
+      return `http://${host}`;
+    }
+
+    function connectWS() {
+      const host = getServerHost();
+      const isHttps = window.location.protocol === 'https:';
+      const protocol = isHttps ? 'wss:' : 'ws:';
+      const wsUrl = `${protocol}//${host}`;
+      
+      if (ws) {
+        try { ws.close(); } catch(e) {}
+      }
+
+      log(`Conectando con el servidor en ${host}...`, 'info');
+      ws = new WebSocket(wsUrl);
+
+      ws.onopen = () => {
+        statusServer.innerHTML = '<span class="indicator online"></span> Conectado';
+        log(`Conectado al servidor Trigger Studio (${host}).`, 'success');
+      };
+
+      ws.onmessage = (event) => {
+        try {
+          const msg = JSON.parse(event.data);
+          if (msg.type === 'status') {
+            if (msg.obsConnected) {
+              statusObs.innerHTML = '<span class="indicator online"></span> Conectado';
+            } else {
+              statusObs.innerHTML = '<span class="indicator offline"></span> Desconectado';
+            }
+            syncActiveAssets(msg.activeAssets || []);
+          } else if (msg.type === 'media_state') {
+            if (msg.state === 'playing') {
+              log(`OBS [${msg.sourceName}]: Reproduciendo "${msg.assetName}"${msg.mute ? ' [Silenciado]' : ' [Con audio]'}`, 'info');
+              markAssetPlaying(msg.assetName, true);
+            } else if (msg.state === 'hidden') {
+              log(`OBS [${msg.sourceName}]: Ocultado "${msg.assetName}"`, 'info');
+              markAssetPlaying(msg.assetName, false);
+            }
+          } else if (msg.type === 'all_stopped') {
+            log('Todos los medios fueron detenidos en OBS.', 'warning');
+            clearPlayingStates();
+          } else if (msg.type === 'success') {
+            log(msg.message, 'success');
+          } else if (msg.type === 'error') {
+            log(msg.message, 'error');
+          }
+        } catch (e) {
+          console.error(e);
+        }
+      };
+
+      ws.onclose = () => {
+        statusServer.innerHTML = '<span class="indicator offline"></span> Desconectado';
+        statusObs.innerHTML = '<span class="indicator offline"></span> Desconectado';
+        log('Conexión perdida. Reconectando en 3s...', 'error');
+        setTimeout(connectWS, 3000);
+      };
+    }
+
+    function syncActiveAssets(activeList) {
+      document.querySelectorAll('.asset-card').forEach(card => card.classList.remove('playing'));
+      activeList.forEach(active => {
+        markAssetPlaying(active.asset, true);
+      });
+    }
+
+    function markAssetPlaying(assetFile, isPlaying) {
+      document.querySelectorAll('.asset-card').forEach(card => {
+        if (card.dataset.file === assetFile) {
+          if (isPlaying) card.classList.add('playing');
+          else card.classList.remove('playing');
+        }
+      });
+    }
+
+    function clearPlayingStates() {
+      document.querySelectorAll('.asset-card').forEach(card => card.classList.remove('playing'));
+    }
+
+    async function loadAssets() {
+      try {
+        const origin = getServerOrigin();
+        const res = await fetch(`${origin}/api/assets`);
+        allAssets = await res.json();
+        renderAssets();
+      } catch (err) {
+        log('Error al cargar multimedia: ' + err.message, 'error');
+      }
+    }
+
+    // Renderizar una tarjeta de archivo (Video, Noticia, Audio, Imagen)
+    function createCardElement(asset) {
+      const card = document.createElement('div');
+      card.className = 'asset-card';
+      card.dataset.file = asset.file;
+
+      const isNoticia = asset.category === 'Noticias' || asset.file.toLowerCase().includes('noticia');
+      let tagText = asset.type;
+      let tagClass = 'tag-video';
+
+      if (isNoticia) {
+        tagText = 'NOTICIA';
+        tagClass = 'tag-noticia';
+      } else if (asset.type === 'image') {
+        tagText = 'GIF/FOTO';
+        tagClass = 'tag-image';
+      } else if (asset.type === 'audio') {
+        tagText = 'AUDIO';
+        tagClass = 'tag-audio';
+      }
+
+      // Reglas de Mute:
+      // Videos normales -> Silenciados por defecto (true)
+      // Noticias -> Con audio por defecto (false)
+      // Audios -> Con audio por defecto (false)
+      const defaultMute = (asset.type === 'video' && !isNoticia);
+      const currentMute = customMutes[asset.id] !== undefined ? customMutes[asset.id] : defaultMute;
+
+      let icon = '🎬';
+      if (isNoticia) icon = '📰';
+      else if (asset.type === 'audio') icon = '🎵';
+      else if (asset.type === 'image') icon = '🖼️';
+
+      let thumbnailHtml = `<div class="asset-icon-fallback">${icon}</div>`;
+      if (asset.thumbnail) {
+        const thumbUrl = asset.thumbnail.startsWith('http') ? asset.thumbnail : `${getServerOrigin()}${asset.thumbnail}`;
+        thumbnailHtml = `<img class="asset-thumbnail" src="${thumbUrl}" alt="${asset.name}" onerror="this.outerHTML='<div class=&quot;asset-icon-fallback&quot;>${icon}</div>';" />`;
+      }
+
+      // Botón toggle de audio para videos
+      let audioBadgeHtml = '';
+      if (asset.type === 'video') {
+        audioBadgeHtml = `
+          <div class="audio-badge ${!currentMute ? 'unmuted' : ''}" title="Clic para alternar audio (silenciado o con sonido)">
+            ${currentMute ? '🔇 Silenc.' : '🔊 Audio'}
+          </div>
+        `;
+      }
+
+      // Subtexto de carpeta si estamos en modo plano
+      let folderSubtext = '';
+      if (!showFolders && asset.folder && asset.folder !== 'general') {
+        folderSubtext = `<div class="asset-folder-subtext">📁 ${asset.folder}</div>`;
+      }
+
+      card.innerHTML = `
+        <span class="asset-tag ${tagClass}">${tagText}</span>
+        ${audioBadgeHtml}
+        <div class="asset-thumbnail-box">
+          ${thumbnailHtml}
+        </div>
+        ${folderSubtext}
+        <div class="asset-name" title="${asset.name}">${asset.name}</div>
+      `;
+
+      // Alternar silencio sin disparar video
+      const badge = card.querySelector('.audio-badge');
+      if (badge) {
+        badge.onclick = (e) => {
+          e.stopPropagation();
+          const newMute = !currentMute;
+          customMutes[asset.id] = newMute;
+          localStorage.setItem('trigger_custom_mutes', JSON.stringify(customMutes));
+          renderAssets();
+          log(`Audio de "${asset.name}" configurado como: ${newMute ? 'Silenciado 🔇' : 'Con sonido 🔊'}`, 'info');
+        };
+      }
+
+      card.onclick = () => {
+        triggerAsset(asset, currentMute);
+      };
+
+      return card;
+    }
+
+    // Renderizar una tarjeta de SUB-CARPETA (Estilo Windows Explorer)
+    function createFolderCardElement(folderPath, folderDisplayName, itemCount, categoryTag = 'CARPETA') {
+      const folderCard = document.createElement('div');
+      folderCard.className = 'folder-card';
+      folderCard.title = `Entrar a la subcarpeta "${folderDisplayName}" (${itemCount} archivos)`;
+
+      folderCard.innerHTML = `
+        <span class="folder-card-tag">${categoryTag}</span>
+        <div class="folder-card-icon">📁</div>
+        <div class="folder-card-name">${folderDisplayName}</div>
+        <div class="folder-card-count">${itemCount} ${itemCount === 1 ? 'archivo' : 'archivos'}</div>
+      `;
+
+      // Al hacer 1 clic, entra a la carpeta
+      folderCard.onclick = () => {
+        currentNavPath = folderPath;
+        renderAssets();
+        log(`Entraste a la subcarpeta: "${folderDisplayName}" 📂`, 'info');
+      };
+
+      return folderCard;
+    }
+
+    // Actualizar barra de migas de pan (Breadcrumbs)
+    function updateBreadcrumbs() {
+      if (!showFolders || !currentNavPath) {
+        breadcrumbsBar.style.display = 'none';
+        return;
+      }
+
+      breadcrumbsBar.style.display = 'flex';
+      crumbsList.innerHTML = '';
+
+      // Crumb inicial "Inicio"
+      const homeCrumb = document.createElement('span');
+      homeCrumb.className = 'crumb-item';
+      homeCrumb.innerHTML = '🏠 Inicio';
+      homeCrumb.onclick = () => {
+        currentNavPath = '';
+        renderAssets();
+      };
+      crumbsList.appendChild(homeCrumb);
+
+      if (currentNavPath) {
+        // currentNavPath ej: 'videos/cumple' o 'videos/cumple/sub'
+        const parts = currentNavPath.split('/');
+        let accumulated = parts[0];
+
+        for (let i = 1; i < parts.length; i++) {
+          const part = parts[i];
+          accumulated += '/' + part;
+          const targetPath = accumulated;
+          const isLast = (i === parts.length - 1);
+
+          const sep = document.createElement('span');
+          sep.className = 'crumb-separator';
+          sep.textContent = '/';
+          crumbsList.appendChild(sep);
+
+          const crumb = document.createElement('span');
+          crumb.className = `crumb-item ${isLast ? 'current' : ''}`;
+          crumb.textContent = `📁 ${part}`;
+
+          if (!isLast) {
+            crumb.onclick = () => {
+              currentNavPath = targetPath;
+              renderAssets();
+            };
+          }
+
+          crumbsList.appendChild(crumb);
+        }
+      }
+
+      // Botón volver atrás (estilo Windows)
+      btnBackCrumb.onclick = () => {
+        if (!currentNavPath) return;
+        const parts = currentNavPath.split('/');
+        if (parts.length <= 2) {
+          currentNavPath = '';
+        } else {
+          parts.pop();
+          currentNavPath = parts.join('/');
+        }
+        renderAssets();
+      };
+    }
+
+    function renderAssets() {
+      assetsGrid.innerHTML = '';
+      updateBreadcrumbs();
+
+      // Filtrado por categoría y búsqueda
+      let baseFiltered = allAssets.filter(asset => {
+        const isNoticia = asset.category === 'Noticias' || asset.file.toLowerCase().includes('noticia');
+        if (currentCategoryFilter === 'video' && (asset.type !== 'video' || isNoticia)) return false;
+        if (currentCategoryFilter === 'noticia' && !isNoticia) return false;
+        if (currentCategoryFilter === 'audio' && asset.type !== 'audio') return false;
+        if (currentCategoryFilter === 'image' && asset.type !== 'image') return false;
+        return true;
+      });
+
+      // Si el usuario está buscando texto en el buscador, mostramos directamente todos los resultados coincidentes
+      if (searchQuery) {
+        const q = searchQuery.toLowerCase();
+        const searchMatches = baseFiltered.filter(asset => {
+          const matchName = asset.name.toLowerCase().includes(q);
+          const matchFile = asset.file.toLowerCase().includes(q);
+          const matchFolder = (asset.folder || '').toLowerCase().includes(q);
+          return matchName || matchFile || matchFolder;
+        });
+
+        if (searchMatches.length === 0) {
+          assetsGrid.innerHTML = `
+            <div class="empty-state">
+              <div class="empty-state-icon">🔍</div>
+              <div class="empty-state-title">No se encontraron archivos con "${searchQuery}"</div>
+              <div style="font-size: 0.9rem;">Prueba buscando otra palabra.</div>
+            </div>
+          `;
+          return;
+        }
+
+        searchMatches.forEach(asset => {
+          assetsGrid.appendChild(createCardElement(asset));
+        });
+        return;
+      }
+
+      // ─── MODO 1: CARPETAS NAVEGABLES (Estilo Windows Explorer) ───
+      if (showFolders) {
+        const directFiles = [];
+        const subfolderMap = new Map(); // key (fullPath) -> { fullPath, displayName, count, categoryTag }
+
+        baseFiltered.forEach(asset => {
+          const folder = (asset.folder || '').replace(/\\/g, '/');
+          const parts = folder ? folder.split('/').filter(Boolean) : [];
+
+          if (!currentNavPath) {
+            // Estamos en la raíz (categoría seleccionada o 'Todos'):
+            // Las carpetas base (videos, sounds, gifs, etc.) son categorías, NO subcarpetas.
+            if (parts.length <= 1) {
+              // Es un archivo directo (ej: videos/cdelu1.mp4 o sounds/Tema.mp3)
+              directFiles.push(asset);
+            } else {
+              // Está dentro de una subcarpeta (ej: videos/cumple/xxx.mp4)
+              const catRoot = parts[0];
+              const subName = parts[1];
+              const subFullPath = `${catRoot}/${subName}`;
+
+              if (!subfolderMap.has(subFullPath)) {
+                subfolderMap.set(subFullPath, {
+                  fullPath: subFullPath,
+                  displayName: subName,
+                  count: 0,
+                  categoryTag: asset.category ? asset.category.toUpperCase() : catRoot.toUpperCase()
+                });
+              }
+              subfolderMap.get(subFullPath).count++;
+            }
+          } else {
+            // Estamos navegando dentro de una subcarpeta específica (ej. 'videos/cumple')
+            if (folder === currentNavPath) {
+              directFiles.push(asset);
+            } else if (folder.startsWith(currentNavPath + '/')) {
+              // Subcarpeta anidada más profunda (ej: 'videos/cumple/sub')
+              const remaining = folder.slice(currentNavPath.length + 1);
+              const nextSubName = remaining.split('/')[0];
+              const nextFullPath = `${currentNavPath}/${nextSubName}`;
+
+              if (!subfolderMap.has(nextFullPath)) {
+                subfolderMap.set(nextFullPath, {
+                  fullPath: nextFullPath,
+                  displayName: nextSubName,
+                  count: 0,
+                  categoryTag: 'SUB'
+                });
+              }
+              subfolderMap.get(nextFullPath).count++;
+            }
+          }
+        });
+
+        // 1. Renderizar primero las subcarpetas (hacer 1 clic para entrar)
+        const sortedSubfolders = Array.from(subfolderMap.values()).sort((a, b) => a.displayName.localeCompare(b.displayName));
+        sortedSubfolders.forEach(info => {
+          assetsGrid.appendChild(createFolderCardElement(info.fullPath, info.displayName, info.count, info.categoryTag));
+        });
+
+        // 2. Renderizar los archivos directos
+        directFiles.forEach(asset => {
+          assetsGrid.appendChild(createCardElement(asset));
+        });
+
+        if (sortedSubfolders.length === 0 && directFiles.length === 0) {
+          assetsGrid.innerHTML = `
+            <div class="empty-state">
+              <div class="empty-state-icon">📂</div>
+              <div class="empty-state-title">Carpeta vacía</div>
+              <div style="font-size: 0.9rem;">No hay archivos dentro de esta carpeta.</div>
+            </div>
+          `;
+        }
+
+      } else {
+        // ─── MODO 2: PLANO (Uno al lado del otro) ───
+        if (baseFiltered.length === 0) {
+          assetsGrid.innerHTML = `
+            <div class="empty-state">
+              <div class="empty-state-icon">🔍</div>
+              <div class="empty-state-title">No se encontraron archivos</div>
+              <div style="font-size: 0.9rem;">Prueba cambiando de categoría o agregando archivos en media.</div>
+            </div>
+          `;
+          return;
+        }
+
+        baseFiltered.forEach(asset => {
+          assetsGrid.appendChild(createCardElement(asset));
+        });
+      }
+    }
+
+    function triggerAsset(asset, muteValue) {
+      if (!ws || ws.readyState !== WebSocket.OPEN) {
+        log('No se puede disparar: Sin conexión con el servidor', 'error');
+        return;
+      }
+
+      const durationVal = parseInt(inputDuration.value) || 0;
+      const payload = {
+        action: 'play',
+        asset: asset.file,
+        type: asset.type,
+        category: asset.category,
+        duration: durationVal,
+        mute: muteValue
+      };
+
+      ws.send(JSON.stringify(payload));
+      log(`Disparando: "${asset.name}" (${asset.type})${muteValue ? ' [Silenciado 🔇]' : ' [Con audio 🔊]'}`, 'info');
+    }
+
+    // Buscador en tiempo real
+    searchInput.oninput = (e) => {
+      searchQuery = e.target.value.trim();
+      renderAssets();
+    };
+
+    // Filtros de categoría rápida
+    filterPills.querySelectorAll('.pill').forEach(pill => {
+      pill.onclick = () => {
+        filterPills.querySelectorAll('.pill').forEach(p => p.classList.remove('active'));
+        pill.classList.add('active');
+        currentCategoryFilter = pill.dataset.category;
+        currentNavPath = ''; // Reseteamos la navegación al cambiar categoría principal
+        renderAssets();
+      };
+    });
+
+    // Disparador manual
+    document.getElementById('btn-trigger-manual').onclick = () => {
+      const filename = inputFilename.value.trim();
+      if (!filename) {
+        log('Por favor escribe un nombre de archivo válido.', 'error');
+        return;
+      }
+      if (!ws || ws.readyState !== WebSocket.OPEN) {
+        log('Sin conexión con el servidor.', 'error');
+        return;
+      }
+
+      const mediaType = document.querySelector('input[name="media-type"]:checked').value;
+      const durationVal = parseInt(inputDuration.value) || 0;
+      const isNoticia = filename.toLowerCase().includes('noticia');
+      const defaultMute = (mediaType === 'video' && !isNoticia);
+
+      ws.send(JSON.stringify({
+        action: 'play',
+        asset: filename,
+        type: mediaType,
+        duration: durationVal,
+        mute: defaultMute
+      }));
+      log(`Comando manual: "${filename}" (${mediaType})`, 'info');
+    };
+
+    // Parar todo (Stop de emergencia)
+    document.getElementById('btn-stop-all').onclick = () => {
+      if (!ws || ws.readyState !== WebSocket.OPEN) return;
+      const btn = document.getElementById('btn-stop-all');
+      btn.classList.add('stopping');
+      btn.textContent = '⌛ Deteniendo...';
+
+      ws.send(JSON.stringify({ action: 'stop' }));
+
+      setTimeout(() => {
+        btn.classList.remove('stopping');
+        btn.classList.add('stopped');
+        btn.textContent = '🛑 ¡Todo Detenido!';
+        setTimeout(() => {
+          btn.classList.remove('stopped');
+          btn.textContent = '🛑 Parar Todo (Stop)';
+        }, 1200);
+      }, 300);
+      log('🚨 Parada de emergencia ejecutada: Se detuvo toda reproducción (la fuente en OBS se mantiene activa).', 'warning');
+    };
+
+    // Actualizar catálogo
+    document.getElementById('btn-refresh').onclick = () => {
+      loadAssets();
+      log('Actualizando catálogo de archivos...', 'info');
+    };
+
+    // Modal de Configuración de Servidor
+    const serverModal = document.getElementById('server-modal');
+    const cfgServerIp = document.getElementById('cfg-server-ip');
+    const btnOpenServerCfg = document.getElementById('btn-open-server-cfg');
+    const btnSaveServerCfg = document.getElementById('btn-save-server-cfg');
+    const btnCancelServerCfg = document.getElementById('btn-cancel-server-cfg');
+
+    btnOpenServerCfg.onclick = () => {
+      cfgServerIp.value = getServerHost();
+      serverModal.style.display = 'flex';
+    };
+
+    btnCancelServerCfg.onclick = () => {
+      serverModal.style.display = 'none';
+    };
+
+    btnSaveServerCfg.onclick = () => {
+      let val = cfgServerIp.value.trim();
+      if (!val) val = 'localhost:2188';
+      val = val.replace(/^https?:\/\//, '').replace(/\/+$/, '');
+      localStorage.setItem('trigger_server_host', val);
+      serverModal.style.display = 'none';
+      log(`Host del servidor actualizado a: ${val}. Reconectando...`, 'info');
+      connectWS();
+      loadAssets();
+    };
+
+    // Inicializar
+    updateFolderButtonState();
+    connectWS();
+    loadAssets();
+  </script>
+</body>
+</html>

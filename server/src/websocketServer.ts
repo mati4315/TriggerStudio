@@ -50,27 +50,25 @@ export class TriggerWebSocketServer {
       });
     });
 
-    // Register media playback ended event from OBS to auto-hide "Noticias"
+    // Register media playback ended event from OBS to automatically finish/clear any media
     this.obsController.onMediaEnded(async (inputName: string) => {
-      const active = this.activeAssets.get(inputName);
-      if (active && active.category === 'Noticias') {
-        console.log(`[OBS Event] Auto-hiding finished Noticias video on source: ${inputName}`);
-        
-        // Find current scene and hide
-        const activeScene = await this.obsController.getCurrentSceneName();
-        const sceneName = process.env.OBS_SCENE || activeScene;
-        
-        await this.obsController.hideAsset(sceneName, inputName);
-        this.activeAssets.delete(inputName);
-        this.broadcastMediaStatus(sceneName, inputName, 'hidden');
-        
-        // Clear any active auto-hide timeouts for this source if they exist
-        const timeoutKey = `${sceneName}:${inputName}`;
-        if (this.activeTimeouts.has(timeoutKey)) {
-          clearTimeout(this.activeTimeouts.get(timeoutKey)!);
-          this.activeTimeouts.delete(timeoutKey);
-        }
+      console.log(`[OBS Event] Media playback ended on source: "${inputName}". Auto-stopping to continue stream...`);
+      
+      const activeScene = await this.obsController.getCurrentSceneName();
+      const sceneName = process.env.OBS_SCENE || activeScene;
+      
+      this.activeAssets.delete(inputName);
+      this.broadcastMediaStatus(sceneName, inputName, 'hidden');
+      
+      // Clear any active auto-hide timeouts for this source if they exist
+      const timeoutKey = `${sceneName}:${inputName}`;
+      if (this.activeTimeouts.has(timeoutKey)) {
+        clearTimeout(this.activeTimeouts.get(timeoutKey)!);
+        this.activeTimeouts.delete(timeoutKey);
       }
+
+      // Stop the media in OBS to reset and clear playback completely
+      await this.obsController.stopAsset(inputName);
     });
 
     // Periodically broadcast status to all clients
@@ -212,12 +210,21 @@ export class TriggerWebSocketServer {
 
       // Audio is played as a media source in OBS (isVideo = true)
       const playAsVideo = isVideo || isAudio;
-      const result = await this.obsController.playAsset(sceneName, sourceName, resolvedPath, playAsVideo, msg.mute || false);
+
+      // Determine mute state:
+      // Default for videos (except Noticias): MUTED (true)
+      // Default for Noticias: UNMUTED (false)
+      // Default for Audios: UNMUTED (false)
+      const isNoticias = msg.category === 'Noticias' || fileName.toLowerCase().includes('noticia');
+      const defaultMute = isVideo && !isNoticias;
+      const mute = msg.mute !== undefined ? !!msg.mute : defaultMute;
+
+      const result = await this.obsController.playAsset(sceneName, sourceName, resolvedPath, playAsVideo, mute);
       if (result.success) {
         const isStaticImage = !isVideo && !isAudio && ext !== '.gif';
         const msgText = isStaticImage 
           ? `Playing ${fileName} on ${sourceName} (Static Image: 2s limit enforced)` 
-          : `Playing ${fileName} on ${sourceName}`;
+          : `Playing ${fileName} on ${sourceName}${mute ? ' [Silenciado]' : ''}`;
         ws.send(JSON.stringify({ type: 'success', message: msgText }));
         if (result.warning) {
           ws.send(JSON.stringify({ type: 'warning', message: result.warning }));
@@ -229,21 +236,33 @@ export class TriggerWebSocketServer {
           type: isAudio ? 'audio' : (isVideo ? 'video' : 'image'),
           category: msg.category,
           startedAt: Date.now(),
-          mute: msg.mute
+          mute: mute
         });
 
         // Broadcast that it is playing
-        this.broadcastMediaStatus(sceneName, sourceName, 'playing', fileName, msg.category, msg.mute);
+        this.broadcastMediaStatus(sceneName, sourceName, 'playing', fileName, msg.category, mute);
 
-        // Handle auto-hide: enforce 2-second display limit only for static images
-        const duration = isStaticImage ? 2 : (msg.duration || 0);
-        if (duration > 0) {
+        // Handle auto-finish / timeout:
+        // - Static images: 3s if duration is 0
+        // - GIFs: 4s if duration is 0
+        // - Custom duration if specified (>0)
+        let effectiveDuration = msg.duration || 0;
+        if (effectiveDuration <= 0) {
+          if (isStaticImage) {
+            effectiveDuration = 3;
+          } else if (!isVideo && !isAudio) {
+            effectiveDuration = 4; // GIF auto-finish
+          }
+        }
+
+        if (effectiveDuration > 0) {
           const timeout = setTimeout(async () => {
-            await this.obsController.hideAsset(sceneName, sourceName);
+            console.log(`[Auto-Finish] Duration reached (${effectiveDuration}s) for "${fileName}". Auto-stopping...`);
+            await this.obsController.stopAsset(sourceName);
             this.activeTimeouts.delete(timeoutKey);
             this.activeAssets.delete(sourceName);
             this.broadcastMediaStatus(sceneName, sourceName, 'hidden');
-          }, duration * 1000);
+          }, effectiveDuration * 1000);
           
           this.activeTimeouts.set(timeoutKey, timeout);
         }
@@ -262,31 +281,26 @@ export class TriggerWebSocketServer {
 
       const sourceName = msg.sourceName;
       if (sourceName) {
-        await this.obsController.hideAsset(sceneName, sourceName);
+        await this.obsController.stopAsset(sourceName);
         this.activeAssets.delete(sourceName);
         this.broadcastMediaStatus(sceneName, sourceName, 'hidden');
       } else {
-        // Hide all active assets we are tracking
-        for (const source of this.activeAssets.keys()) {
-          await this.obsController.hideAsset(sceneName, source);
-        }
-
-        // Dynamically stop everything in the configured scene
+        // Emergency stop: stop all media in the scene without disabling any source
         await this.obsController.stopAllAssets(sceneName);
         
-        // Also stop/hide the default configured sources just in case they are in another scene
-        await this.obsController.hideAsset(sceneName, defaultVideoSource);
-        await this.obsController.hideAsset(sceneName, defaultImageSource);
+        // Also stop default configured sources
+        await this.obsController.stopAsset(defaultVideoSource);
+        await this.obsController.stopAsset(defaultImageSource);
         
         this.activeAssets.clear();
 
         this.broadcastMediaStatus(sceneName, defaultVideoSource, 'hidden');
         this.broadcastMediaStatus(sceneName, defaultImageSource, 'hidden');
 
-        // Broadcast general stop to clear all active cards
+        // Broadcast general stop to clear all active cards and stop overlay
         this.broadcastAllAssetsStopped();
       }
-      ws.send(JSON.stringify({ type: 'success', message: 'All assets stopped and hidden' }));
+      ws.send(JSON.stringify({ type: 'success', message: 'All playback stopped' }));
       return;
     }
   }
@@ -326,15 +340,30 @@ export class TriggerWebSocketServer {
       return fullPath;
     }
 
-    // 2. Subdirectory checks (videos, gifs, memes, overlays, sounds, noticias)
-    const dirs = ['videos', 'gifs', 'memes', 'overlays', 'sounds', 'noticias'];
-    for (const dir of dirs) {
-      fullPath = path.join(this.mediaPath, dir, fileName);
-      if (fs.existsSync(fullPath) && fs.statSync(fullPath).isFile()) {
-        return fullPath;
-      }
-    }
+    // 2. Normalized path check
+    const normalized = fileName.replace(/\\/g, '/');
 
-    return null;
+    // 3. Search recursively inside mediaPath
+    const findRecursive = (dir: string): string | null => {
+      if (!fs.existsSync(dir)) return null;
+      const items = fs.readdirSync(dir);
+      for (const item of items) {
+        if (item === '.thumbnails' || item.startsWith('.')) continue;
+        const currentPath = path.join(dir, item);
+        const stat = fs.statSync(currentPath);
+        if (stat.isDirectory()) {
+          const res = findRecursive(currentPath);
+          if (res) return res;
+        } else if (stat.isFile()) {
+          const rel = path.relative(this.mediaPath, currentPath).replace(/\\/g, '/');
+          if (rel === normalized || item.toLowerCase() === path.basename(normalized).toLowerCase()) {
+            return currentPath;
+          }
+        }
+      }
+      return null;
+    };
+
+    return findRecursive(this.mediaPath);
   }
 }

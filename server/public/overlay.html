@@ -42,11 +42,13 @@
   <div id="media-container">
     <video id="video-player" playsinline></video>
     <img id="image-player" style="display: none;" />
+    <audio id="audio-player"></audio>
   </div>
   <script>
     const container = document.getElementById('media-container');
     const videoPlayer = document.getElementById('video-player');
     const imagePlayer = document.getElementById('image-player');
+    const audioPlayer = document.getElementById('audio-player');
 
     let ws;
     function connect() {
@@ -81,35 +83,58 @@
     function showMedia(assetName, category, sourceName, mute) {
       const ext = assetName.split('.').pop().toLowerCase();
       const isVideo = ['mp4', 'webm', 'ogg', 'mov', 'mkv'].includes(ext);
+      const isAudio = ['mp3', 'wav', 'ogg', 'm4a', 'aac', 'flac'].includes(ext);
 
       // Hide all first
       videoPlayer.style.display = 'none';
       videoPlayer.pause();
       videoPlayer.onended = null;
       videoPlayer.muted = !!mute;
+
       imagePlayer.style.display = 'none';
+
+      audioPlayer.pause();
+      audioPlayer.onended = null;
+      audioPlayer.muted = !!mute;
 
       const mediaUrl = '/media/' + assetName.split('/').map(encodeURIComponent).join('/');
 
       if (isVideo) {
         videoPlayer.src = mediaUrl;
         videoPlayer.style.display = 'block';
+        videoPlayer.loop = false;
 
-        if (category === 'Noticias') {
-          videoPlayer.onended = () => {
-            hideMedia();
-            if (ws && ws.readyState === WebSocket.OPEN) {
-              ws.send(JSON.stringify({ 
-                action: 'ended', 
-                asset: assetName, 
-                sourceName: sourceName 
-              }));
-            }
-          };
-        }
+        videoPlayer.onended = () => {
+          hideMedia();
+          if (ws && ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({ 
+              action: 'ended', 
+              asset: assetName, 
+              sourceName: sourceName 
+            }));
+          }
+        };
 
         videoPlayer.play().catch(err => {
           console.warn("Playback failed:", err);
+        });
+      } else if (isAudio) {
+        audioPlayer.src = mediaUrl;
+        audioPlayer.loop = false;
+
+        audioPlayer.onended = () => {
+          hideMedia();
+          if (ws && ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({ 
+              action: 'ended', 
+              asset: assetName, 
+              sourceName: sourceName 
+            }));
+          }
+        };
+
+        audioPlayer.play().catch(err => {
+          console.warn("Audio playback failed:", err);
         });
       } else {
         imagePlayer.src = mediaUrl;
@@ -121,13 +146,15 @@
 
     function hideMedia() {
       container.classList.remove('visible');
+      videoPlayer.pause();
+      audioPlayer.pause();
       setTimeout(() => {
-        videoPlayer.pause();
         videoPlayer.src = '';
         imagePlayer.src = '';
+        audioPlayer.src = '';
         videoPlayer.style.display = 'none';
         imagePlayer.style.display = 'none';
-      }, 300);
+      }, 250);
     }
 
     connect();
