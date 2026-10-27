@@ -95,6 +95,30 @@
       align-items: start;
     }
 
+    .sidebar-shell { position: relative; min-width: 0; }
+    .sidebar-content { display: block; }
+    .sidebar-stack { display: flex; flex-direction: column; gap: 1.5rem; }
+    .sidebar-toggle {
+      position: absolute; top: 50%; right: -13px; z-index: 30; display: grid; place-items: center;
+      width: 26px; height: 48px; padding: 0; border: 1px solid rgba(148,163,184,0.24); border-radius: 0 10px 10px 0;
+      background: rgba(20,22,36,0.86); color: #cbd5e1; font-size: 15px; line-height: 1; cursor: pointer;
+      opacity: 0.72; transform: translateY(-50%); transition: opacity 0.18s ease, color 0.18s ease, background 0.18s ease;
+      backdrop-filter: blur(10px);
+    }
+    .sidebar-toggle:hover, .sidebar-toggle:focus-visible { opacity: 1; color: #fff; background: rgba(99,102,241,0.42); outline: none; }
+    .sidebar-emergency-slot { display: none; }
+    .main-container.sidebar-collapsed { grid-template-columns: 52px minmax(0,1fr); gap: 1rem; }
+    .main-container.sidebar-collapsed .sidebar-shell { min-height: min(72vh, 640px); }
+    .main-container.sidebar-collapsed .sidebar-content { display: none; }
+    .main-container.sidebar-collapsed .sidebar-toggle { right: 7px; border-radius: 10px; }
+    .main-container.sidebar-collapsed .sidebar-emergency-slot:not([hidden]) {
+      position: absolute; top: 10px; left: 50%; display: flex; transform: translateX(-50%);
+    }
+    .sidebar-emergency-slot #btn-stop-all { width: 40px; height: 42px; padding: 0; border-radius: 12px; font-size: 0; }
+    .sidebar-emergency-slot #btn-stop-all::before { content: '🛑'; font-size: 18px; }
+    .sidebar-emergency-slot #btn-stop-all.stopping::before { content: '⌛'; }
+    .sidebar-emergency-slot #btn-stop-all.stopped::before { content: '✅'; }
+
     @media (max-width: 860px) {
       .main-container {
         grid-template-columns: 1fr;
@@ -995,8 +1019,10 @@
 
   <div class="main-container">
     <!-- Barra lateral: Estado y Acciones Rápidas -->
-    <div style="display: flex; flex-direction: column; gap: 1.5rem;">
-      <div class="panel">
+    <div class="sidebar-shell" id="sidebar-shell">
+      <div class="sidebar-content" id="sidebar-content">
+       <div class="sidebar-stack">
+        <div class="panel">
         <div class="panel-title" style="display: flex; justify-content: space-between; align-items: center;">
           <span>📡 Estado de Conexión</span>
           <button class="btn-cfg" id="btn-open-server-cfg" title="Configurar IP del servidor Trigger Studio">⚙️ IP Servidor</button>
@@ -1015,10 +1041,12 @@
             </span>
           </div>
         </div>
-        <button class="btn btn-danger" id="btn-stop-all" title="Parada de emergencia: Detiene todas las reproducciones de inmediato sin ocultar la fuente en OBS">🛑 Parar Todo (Stop)</button>
-      </div>
+        <div id="btn-stop-all-home">
+          <button class="btn btn-danger" id="btn-stop-all" aria-label="Parar todo: detener todas las reproducciones" title="Parada de emergencia: Detiene todas las reproducciones de inmediato sin ocultar la fuente en OBS">🛑 Parar Todo (Stop)</button>
+        </div>
+        </div>
 
-      <div class="panel">
+        <div class="panel">
         <div class="panel-title">🧪 Disparador Manual</div>
         <div class="form-field">
           <label for="input-filename">Nombre de Archivo</label>
@@ -1043,7 +1071,11 @@
           <input type="number" id="input-duration" class="input-text" min="0" value="0">
         </div>
         <button class="btn btn-primary" id="btn-trigger-manual">🚀 Disparar Manual</button>
+        </div>
+       </div>
       </div>
+      <button class="sidebar-toggle" id="sidebar-toggle" type="button" aria-expanded="true" aria-controls="sidebar-content" title="Ocultar menú lateral">‹</button>
+      <div class="sidebar-emergency-slot" id="sidebar-emergency-slot" hidden></div>
     </div>
 
     <!-- Contenido principal: Galería Multimedia con Explorador de Carpetas -->
@@ -1224,6 +1256,11 @@
     const inputDuration = document.getElementById('input-duration');
     const searchInput = document.getElementById('search-input');
     const filterPills = document.getElementById('filter-pills');
+    const mainContainer = document.querySelector('.main-container');
+    const sidebarToggle = document.getElementById('sidebar-toggle');
+    const sidebarStopHome = document.getElementById('btn-stop-all-home');
+    const sidebarEmergencySlot = document.getElementById('sidebar-emergency-slot');
+    const stopAllButton = document.getElementById('btn-stop-all');
     const btnToggleFolders = document.getElementById('btn-toggle-folders');
     const breadcrumbsBar = document.getElementById('breadcrumbs-bar');
     const btnBackCrumb = document.getElementById('btn-back-crumb');
@@ -1286,6 +1323,28 @@
     let videoCompressionBusy = false;
     let videoAnalysisBusy = false;
     let videoCompressionDone = false;
+
+    const sidebarPreferenceKey = 'trigger_sidebar_collapsed_v1';
+    function setSidebarCollapsed(collapsed, savePreference = true) {
+      mainContainer.classList.toggle('sidebar-collapsed', collapsed);
+      sidebarToggle.textContent = collapsed ? '›' : '‹';
+      sidebarToggle.title = collapsed ? 'Mostrar menú lateral' : 'Ocultar menú lateral';
+      sidebarToggle.setAttribute('aria-expanded', String(!collapsed));
+      if (collapsed) {
+        sidebarEmergencySlot.appendChild(stopAllButton);
+        sidebarEmergencySlot.hidden = false;
+      } else {
+        sidebarStopHome.appendChild(stopAllButton);
+        sidebarEmergencySlot.hidden = true;
+      }
+      if (savePreference) {
+        try { localStorage.setItem(sidebarPreferenceKey, String(collapsed)); } catch { /* El control sigue funcionando durante esta sesión. */ }
+      }
+    }
+    sidebarToggle.onclick = () => setSidebarCollapsed(!mainContainer.classList.contains('sidebar-collapsed'));
+    let startSidebarCollapsed = false;
+    try { startSidebarCollapsed = localStorage.getItem(sidebarPreferenceKey) === 'true'; } catch { /* Se inicia expandido si el almacenamiento no está disponible. */ }
+    setSidebarCollapsed(startSidebarCollapsed, false);
 
     const galleryPreferencesKey = 'trigger_gallery_display_preferences_v1';
     const defaultGalleryPreferences = { cardWidth: 150, fontSize: 14, previewHeight: 80, gap: 10, headerSize: 90 };
