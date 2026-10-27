@@ -78,6 +78,61 @@ export class OBSController {
     };
   }
 
+  public async getInputVolume(inputName: string): Promise<number> {
+    if (!this.isConnected) throw new Error('No conectado a OBS Studio');
+    const result = await this.obs.call('GetInputVolume', { inputName });
+    return result.inputVolumeMul;
+  }
+
+  public async setInputVolume(inputName: string, volumeMultiplier: number): Promise<void> {
+    if (!this.isConnected) throw new Error('No conectado a OBS Studio');
+    if (!Number.isFinite(volumeMultiplier) || volumeMultiplier < 0 || volumeMultiplier > 2) {
+      throw new Error('El volumen debe estar entre 0 y 200%.');
+    }
+    await this.obs.call('SetInputVolume', {
+      inputName,
+      inputVolumeMul: volumeMultiplier
+    });
+  }
+
+  public async setInputMute(inputName: string, muted: boolean): Promise<void> {
+    if (!this.isConnected) throw new Error('No conectado a OBS Studio');
+    await this.obs.call('SetInputMute', { inputName, inputMuted: muted });
+  }
+
+  public async getMediaInputStatus(inputName: string): Promise<{ mediaState: string; mediaDuration: number; mediaCursor: number }> {
+    if (!this.isConnected) throw new Error('No conectado a OBS Studio');
+    return this.obs.call('GetMediaInputStatus', { inputName });
+  }
+
+  public async setMediaInputPlayback(inputName: string, playback: 'play' | 'pause'): Promise<void> {
+    if (!this.isConnected) throw new Error('No conectado a OBS Studio');
+    const status = await this.getMediaInputStatus(inputName);
+    const isPaused = status.mediaState === 'OBS_MEDIA_STATE_PAUSED';
+    if (playback === 'pause' && !isPaused) {
+      await this.obs.call('TriggerMediaInputAction', {
+        inputName,
+        mediaAction: 'OBS_WEBSOCKET_MEDIA_INPUT_ACTION_PAUSE'
+      });
+    } else if (playback === 'play' && isPaused) {
+      await this.obs.call('TriggerMediaInputAction', {
+        inputName,
+        mediaAction: 'OBS_WEBSOCKET_MEDIA_INPUT_ACTION_PLAY'
+      });
+    }
+  }
+
+  public async seekMediaInput(inputName: string, positionSeconds: number): Promise<void> {
+    if (!this.isConnected) throw new Error('No conectado a OBS Studio');
+    if (!Number.isFinite(positionSeconds) || positionSeconds < 0) {
+      throw new Error('La posición debe ser un número positivo.');
+    }
+    const status = await this.getMediaInputStatus(inputName);
+    const duration = Number(status.mediaDuration) || 0;
+    const positionMs = Math.round(Math.min(positionSeconds, duration > 0 ? duration / 1000 : positionSeconds) * 1000);
+    await this.obs.call('SetMediaInputCursor', { inputName, mediaCursor: positionMs });
+  }
+
   /**
    * Play an asset (video or image/gif) in OBS
    * @param sceneName Name of the OBS scene
@@ -107,7 +162,7 @@ export class OBSController {
     absoluteFilePath: string,
     isVideo: boolean = true,
     mute: boolean = false
-  ): Promise<{ success: boolean; error?: string; warning?: string }> {
+  ): Promise<{ success: boolean; error?: string; warning?: string; inputKind?: string }> {
     if (!this.isConnected) {
       console.warn('[OBS] Cannot play asset: Not connected to OBS.');
       return { success: false, error: 'No conectado a OBS Studio' };
@@ -264,7 +319,7 @@ export class OBSController {
       }
 
       console.log(`\x1b[32m[OBS] Successfully triggered "${sourceName}" in scene "${sceneName}"\x1b[0m`);
-      return { success: true, warning };
+      return { success: true, warning, inputKind };
     } catch (error: any) {
       console.error('[OBS] Error playing asset:', error.message || error);
       return { success: false, error: error.message || String(error) };

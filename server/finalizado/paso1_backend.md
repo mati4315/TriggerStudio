@@ -1,5 +1,7 @@
 # TriggerStudio - Paso 1: Backend & Conexión a OBS
 
+> Documento de una etapa inicial. La referencia mantenida del funcionamiento actual está en [`../../docs/ARQUITECTURA_Y_DESARROLLO.md`](../../docs/ARQUITECTURA_Y_DESARROLLO.md).
+
 Hemos completado el **Paso 1** para el desarrollo de **TriggerStudio**. Este paso implementa la base del Backend en **Node.js + TypeScript** que se comunica con OBS Studio a través de WebSockets y expone un servidor WebSocket local y una interfaz de control web minimalista para validar el flujo.
 
 ---

@@ -14,6 +14,8 @@ set "INSTALLED_DIR=D:\Archivos de programa\TriggerStudio"
 set "CLIENT_DIR=%ROOT_DIR%client_extracted"
 set "SERVER_DIR=%ROOT_DIR%server"
 set "OUTPUT_DIR=%ROOT_DIR%Instalador_TriggerStudio"
+set "INSTALLED_UPDATED=NO"
+set "PORTABLE_UPDATED=NO"
 
 :: 1. Verificar si Node.js y npm estan disponibles
 echo [1/6] Verificando entorno Node.js...
@@ -79,6 +81,7 @@ if exist "%INSTALLED_DIR%\resources" (
         echo [ALERTA] No se pudo sobrescribir directamente en "%INSTALLED_DIR%\resources\app.asar". Asegurate de tener permisos de administrador.
     ) else (
         echo       [OK] Aplicacion instalada en "%INSTALLED_DIR%" actualizada correctamente.
+        set "INSTALLED_UPDATED=SI"
     )
 ) else (
     echo       [INFO] No se encontro "%INSTALLED_DIR%". Saltando actualizacion directa.
@@ -92,13 +95,49 @@ if not exist "%OUTPUT_DIR%" mkdir "%OUTPUT_DIR%"
 if exist "%INSTALLED_DIR%" (
     echo       Copiando binarios ejecutables de TriggerStudio...
     robocopy "%INSTALLED_DIR%" "%OUTPUT_DIR%" /E /XF "app.asar" "app.asar.original" "app.asar.bak" /NDL /NFL /NJH /NJS /nc /ns /np >nul
+    if errorlevel 8 (
+        color 0C
+        echo [ERROR] No se pudo actualizar la carpeta portable desde "%INSTALLED_DIR%".
+        pause
+        exit /b 1
+    )
     if not exist "%OUTPUT_DIR%\resources" mkdir "%OUTPUT_DIR%\resources"
+)
+
+if exist "%OUTPUT_DIR%\TriggerStudio.exe" (
+    if not exist "%OUTPUT_DIR%\resources" mkdir "%OUTPUT_DIR%\resources"
+    if exist "%OUTPUT_DIR%\resources\app.asar" (
+        copy /Y "%OUTPUT_DIR%\resources\app.asar" "%OUTPUT_DIR%\resources\app.asar.bak" >nul
+    )
     copy /Y "%TEMP_ASAR%" "%OUTPUT_DIR%\resources\app.asar" >nul
-    echo       [OK] Paquete portable listo en:
+    if errorlevel 1 (
+        color 0C
+        echo [ERROR] No se pudo actualizar "%OUTPUT_DIR%\resources\app.asar".
+        pause
+        exit /b 1
+    )
+    set "PORTABLE_UPDATED=SI"
+    echo       [OK] Paquete portable actualizado en resources\app.asar.
+    if exist "%OUTPUT_DIR%\app.asar" (
+        move /Y "%OUTPUT_DIR%\app.asar" "%OUTPUT_DIR%\app.asar.bak" >nul
+        echo       [OK] Se aparto el app.asar suelto que Electron no utilizaba.
+    )
     echo            "%OUTPUT_DIR%"
+) else if exist "%OUTPUT_DIR%\resources" (
+    color 0C
+    echo [ERROR] Hay una carpeta resources pero falta TriggerStudio.exe. No se puede validar ni actualizar el paquete portable.
+    pause
+    exit /b 1
 ) else (
     copy /Y "%TEMP_ASAR%" "%OUTPUT_DIR%\app.asar" >nul
-    echo       [OK] app.asar guardado en "%OUTPUT_DIR%".
+    if errorlevel 1 (
+        color 0C
+        echo [ERROR] No se pudo guardar el archivo app.asar.
+        pause
+        exit /b 1
+    )
+    echo       [INFO] Solo se genero app.asar; falta el runtime de Electron para que sea portable.
+    echo       [OK] app.asar guardado en "%OUTPUT_DIR%\app.asar".
 )
 
 :: Limpiar temporal
@@ -109,8 +148,8 @@ echo ================================================================
 echo              COMPILACION Y ACTUALIZACION FINALIZADA
 echo ================================================================
 echo.
-echo  - Aplicacion instalada: ACTUALIZADA AL 100%%
-echo  - Copia portable lista: "%OUTPUT_DIR%"
+echo  - Aplicacion instalada actualizada: %INSTALLED_UPDATED%
+echo  - Paquete Electron portable actualizado: %PORTABLE_UPDATED%
 echo.
 set /p LANZAR="Deseas iniciar TriggerStudio ahora mismo? (S/N): "
 if /I "!LANZAR!"=="S" (

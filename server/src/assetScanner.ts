@@ -7,6 +7,7 @@ export interface MediaAsset {
   name: string;
   type: 'video' | 'image' | 'audio';
   file: string; // Relative to MEDIA_PATH
+  sizeBytes: number;
   thumbnail?: string;
   category: string;
   folder: string; // e.g. "videos", "videos/cumple", etc.
@@ -22,6 +23,11 @@ export class AssetScanner {
   constructor(mediaPath: string) {
     this.mediaPath = mediaPath;
     this.thumbnailGenerator = new ThumbnailGenerator(mediaPath);
+  }
+
+  public setMediaPath(mediaPath: string) {
+    this.mediaPath = mediaPath;
+    this.thumbnailGenerator.setMediaPath(mediaPath);
   }
 
   /**
@@ -91,6 +97,7 @@ export class AssetScanner {
             name: cleanName,
             type,
             file: relativeFile.replace(/\\/g, '/'),
+            sizeBytes: stat.size,
             thumbnail,
             category,
             folder

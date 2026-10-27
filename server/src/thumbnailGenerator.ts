@@ -17,6 +17,13 @@ export class ThumbnailGenerator {
     this.ensureDirectoryExists();
   }
 
+  public setMediaPath(mediaPath: string) {
+    this.mediaPath = mediaPath;
+    this.thumbnailsDir = path.join(mediaPath, '.thumbnails');
+    this.generatingTasks.clear();
+    this.ensureDirectoryExists();
+  }
+
   private ensureDirectoryExists() {
     if (!fs.existsSync(this.thumbnailsDir)) {
       try {

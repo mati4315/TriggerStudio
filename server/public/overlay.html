@@ -51,6 +51,58 @@
     const audioPlayer = document.getElementById('audio-player');
 
     let ws;
+    let activeSourceName = '';
+    let activeAssetName = '';
+    let activeMediaElement = null;
+    let activeInputKind = '';
+    let activeVolume = 100;
+    let progressTimer = null;
+    let sourceClearTimer = null;
+    let mediaAudioContext = null;
+    const mediaGainNodes = new WeakMap();
+
+    function getMediaGainNode(mediaElement) {
+      if (mediaGainNodes.has(mediaElement)) return mediaGainNodes.get(mediaElement);
+      const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+      if (!AudioContextClass) return null;
+
+      try {
+        if (!mediaAudioContext) mediaAudioContext = new AudioContextClass();
+        const source = mediaAudioContext.createMediaElementSource(mediaElement);
+        const gain = mediaAudioContext.createGain();
+        source.connect(gain);
+        gain.connect(mediaAudioContext.destination);
+        mediaGainNodes.set(mediaElement, gain);
+        return gain;
+      } catch (error) {
+        console.warn('Could not create media volume control:', error);
+        return null;
+      }
+    }
+
+    function setMediaVolume(volumePercent) {
+      activeVolume = Math.max(0, Math.min(200, Number(volumePercent) || 0));
+      if (!activeMediaElement) return;
+
+      const multiplier = activeVolume / 100;
+      const existingGain = mediaGainNodes.get(activeMediaElement);
+      if (multiplier <= 1 && !existingGain) {
+        activeMediaElement.volume = multiplier;
+        return;
+      }
+
+      const gain = getMediaGainNode(activeMediaElement);
+      if (gain && mediaAudioContext) {
+        activeMediaElement.volume = 1;
+        if (mediaAudioContext.state === 'suspended') {
+          mediaAudioContext.resume().catch(error => console.warn('Could not resume audio:', error));
+        }
+        gain.gain.setValueAtTime(multiplier, mediaAudioContext.currentTime);
+      } else {
+        // Native media volume is the fallback for browsers without Web Audio.
+        activeMediaElement.volume = Math.min(1, multiplier);
+      }
+    }
     function connect() {
       const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
       const wsUrl = `${protocol}//${window.location.host}`;
@@ -62,12 +114,14 @@
           const msg = JSON.parse(event.data);
           if (msg.type === 'media_state') {
             if (msg.state === 'playing') {
-              showMedia(msg.assetName, msg.category, msg.sourceName, msg.mute);
+              showMedia(msg.assetName, msg.category, msg.sourceName, msg.mute, msg.volume, msg.inputKind);
             } else if (msg.state === 'hidden') {
               hideMedia();
             }
           } else if (msg.type === 'all_stopped') {
             hideMedia();
+          } else if (msg.type === 'player_control') {
+            controlPlayer(msg);
           }
         } catch (e) {
           console.error('Error parsing WS message:', e);
@@ -80,7 +134,19 @@
       };
     }
 
-    function showMedia(assetName, category, sourceName, mute) {
+    function showMedia(assetName, category, sourceName, mute, volume, inputKind) {
+      // A previous hide's delayed cleanup must never erase this newly selected item.
+      if (sourceClearTimer) {
+        clearTimeout(sourceClearTimer);
+        sourceClearTimer = null;
+      }
+      if (progressTimer) clearInterval(progressTimer);
+      progressTimer = null;
+      activeSourceName = sourceName || '';
+      activeAssetName = assetName || '';
+      activeInputKind = inputKind || '';
+      activeVolume = Number.isFinite(Number(volume)) ? Number(volume) : 100;
+      activeMediaElement = null;
       const ext = assetName.split('.').pop().toLowerCase();
       const isVideo = ['mp4', 'webm', 'ogg', 'mov', 'mkv'].includes(ext);
       const isAudio = ['mp3', 'wav', 'ogg', 'm4a', 'aac', 'flac'].includes(ext);
@@ -103,6 +169,8 @@
         videoPlayer.src = mediaUrl;
         videoPlayer.style.display = 'block';
         videoPlayer.loop = false;
+        activeMediaElement = videoPlayer;
+        setMediaVolume(activeVolume);
 
         videoPlayer.onended = () => {
           hideMedia();
@@ -121,6 +189,8 @@
       } else if (isAudio) {
         audioPlayer.src = mediaUrl;
         audioPlayer.loop = false;
+        activeMediaElement = audioPlayer;
+        setMediaVolume(activeVolume);
 
         audioPlayer.onended = () => {
           hideMedia();
@@ -142,18 +212,64 @@
       }
 
       container.classList.add('visible');
+      if (activeMediaElement) {
+        progressTimer = setInterval(reportProgress, 500);
+        reportProgress();
+      }
+    }
+
+    function controlPlayer(msg) {
+      if (!activeMediaElement || msg.sourceName !== activeSourceName) return;
+      if (msg.action === 'mute') {
+        videoPlayer.muted = !!msg.muted;
+        audioPlayer.muted = !!msg.muted;
+      } else if (msg.action === 'volume') {
+        setMediaVolume(msg.volume);
+      } else if (msg.action === 'pause') {
+        activeMediaElement.pause();
+        reportProgress();
+      } else if (msg.action === 'play') {
+        activeMediaElement.play().catch(err => console.warn('Playback failed:', err));
+      } else if (msg.action === 'seek') {
+        const position = Number(msg.currentTime);
+        if (Number.isFinite(position) && position >= 0) {
+          const duration = Number.isFinite(activeMediaElement.duration) ? activeMediaElement.duration : position;
+          activeMediaElement.currentTime = Math.min(position, duration);
+          reportProgress();
+        }
+      }
+    }
+
+    function reportProgress() {
+      if (!activeMediaElement || !activeSourceName || !ws || ws.readyState !== WebSocket.OPEN) return;
+      ws.send(JSON.stringify({
+        action: 'progress',
+        sourceName: activeSourceName,
+        asset: activeAssetName,
+        currentTime: Number.isFinite(activeMediaElement.currentTime) ? activeMediaElement.currentTime : 0,
+        duration: Number.isFinite(activeMediaElement.duration) ? activeMediaElement.duration : 0,
+        paused: activeMediaElement.paused
+      }));
     }
 
     function hideMedia() {
+      if (progressTimer) clearInterval(progressTimer);
+      progressTimer = null;
+      activeSourceName = '';
+      activeAssetName = '';
+      activeInputKind = '';
+      activeMediaElement = null;
       container.classList.remove('visible');
       videoPlayer.pause();
       audioPlayer.pause();
-      setTimeout(() => {
+      if (sourceClearTimer) clearTimeout(sourceClearTimer);
+      sourceClearTimer = setTimeout(() => {
         videoPlayer.src = '';
         imagePlayer.src = '';
         audioPlayer.src = '';
         videoPlayer.style.display = 'none';
         imagePlayer.style.display = 'none';
+        sourceClearTimer = null;
       }, 250);
     }
 

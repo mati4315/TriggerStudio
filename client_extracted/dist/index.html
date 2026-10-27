@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
   <title>TriggerStudio - Panel de Control</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -303,11 +304,39 @@
     .gallery-header {
       display: flex;
       flex-direction: column;
-      gap: 1rem;
+      gap: var(--gallery-header-row-gap, 16px);
       border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-      padding-bottom: 1.25rem;
-      margin-bottom: 1.25rem;
+      padding-bottom: var(--gallery-header-bottom-space, 20px);
+      margin-bottom: var(--gallery-header-bottom-space, 20px);
+      position: relative;
     }
+
+    .gallery-header > .gallery-top-row { column-gap: var(--gallery-header-item-gap, 14px); }
+    .gallery-heading { display: flex; align-items: center; gap: var(--gallery-header-item-gap, 14px); min-width: 0; }
+    .gallery-heading .panel-title { font-size: var(--gallery-header-title-size, 1.05rem); }
+    .gallery-settings-toggle {
+      width: 2rem; height: 2rem; display: inline-flex; align-items: center; justify-content: center;
+      border: 1px solid var(--border-color); border-radius: 9px; background: rgba(255,255,255,0.06);
+      color: var(--text-secondary); font-size: 1rem; cursor: pointer; transition: all 0.18s ease;
+    }
+    .gallery-settings-toggle:hover, .gallery-settings-toggle[aria-expanded="true"] {
+      border-color: var(--primary); color: #fff; background: rgba(99,102,241,0.24);
+    }
+    .gallery-settings-panel {
+      position: absolute; z-index: 30; top: 2.8rem; right: 0; width: min(340px, calc(100vw - 3rem));
+      display: grid; gap: 0.8rem; padding: 1rem; border: 1px solid var(--border-color); border-radius: 14px;
+      background: rgba(16, 17, 29, 0.98); box-shadow: 0 18px 48px rgba(0,0,0,0.55); backdrop-filter: blur(16px);
+    }
+    .gallery-settings-panel[hidden] { display: none; }
+    .gallery-settings-head { display: flex; align-items: center; justify-content: space-between; gap: 0.7rem; color: #fff; font-size: 0.88rem; }
+    .gallery-settings-close { width: 1.8rem; height: 1.8rem; border: 0; border-radius: 7px; background: rgba(255,255,255,0.08); color: #fff; cursor: pointer; }
+    .gallery-setting-row { display: grid; gap: 0.35rem; color: var(--text-secondary); font-size: 0.75rem; }
+    .gallery-setting-row span { display: flex; align-items: center; justify-content: space-between; gap: 0.6rem; }
+    .gallery-setting-row output { color: #a5b4fc; font-variant-numeric: tabular-nums; }
+    .gallery-setting-row input[type="range"], .assets-grid-toolbar input[type="range"] { width: 100%; accent-color: var(--primary); cursor: pointer; }
+    .gallery-settings-reset { justify-self: start; border: 1px solid var(--border-color); border-radius: 8px; padding: 0.4rem 0.65rem; background: rgba(255,255,255,0.06); color: var(--text-secondary); font: inherit; font-size: 0.72rem; cursor: pointer; }
+    .gallery-settings-reset:hover { border-color: var(--primary); color: #fff; }
+    .gallery-settings-saved { color: var(--text-muted); font-size: 0.66rem; }
 
     .gallery-top-row {
       display: flex;
@@ -482,7 +511,7 @@
       background: linear-gradient(145deg, rgba(99, 102, 241, 0.12) 0%, rgba(30, 27, 75, 0.4) 100%);
       border: 1px solid rgba(129, 140, 248, 0.35);
       border-radius: 16px;
-      padding: 1.15rem 1rem;
+      padding: var(--gallery-card-padding, 10px);
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -518,8 +547,8 @@
     }
 
     .folder-card-icon {
-      font-size: 3.2rem;
-      margin-bottom: 0.5rem;
+      font-size: clamp(1.7rem, 3vw, 2.35rem);
+      margin-bottom: 0.3rem;
       filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.5));
       transition: transform 0.25s ease;
     }
@@ -529,7 +558,7 @@
     }
 
     .folder-card-name {
-      font-size: 0.92rem;
+      font-size: var(--gallery-font-size, 14px);
       font-weight: 700;
       color: #ffffff;
       margin-bottom: 0.25rem;
@@ -548,12 +577,26 @@
     /* Grid de tarjetas multimedia */
     .assets-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-      gap: 1.25rem;
+      --gallery-card-min-width: 150px;
+      --gallery-font-size: 14px;
+      --gallery-preview-height: 80px;
+      --gallery-grid-gap: 10px;
+      --gallery-card-padding: 10px;
+      grid-template-columns: repeat(auto-fill, minmax(min(100%, var(--gallery-card-min-width)), 1fr));
+      gap: var(--gallery-grid-gap);
       max-height: 62vh;
       overflow-y: auto;
       padding-right: 0.4rem;
     }
+
+    .assets-grid-toolbar {
+      display: flex; align-items: center; justify-content: flex-end; gap: 0.6rem;
+      margin: 0 0 0.65rem; padding: 0.45rem 0.7rem; border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 9px; background: rgba(0,0,0,0.16); color: var(--text-muted); font-size: 0.72rem;
+    }
+    .assets-grid-toolbar label { display: flex; align-items: center; gap: 0.55rem; white-space: nowrap; }
+    .assets-grid-toolbar input[type="range"] { width: min(180px, 30vw); }
+    .assets-grid-toolbar output { min-width: 3.6rem; color: #a5b4fc; font-variant-numeric: tabular-nums; text-align: right; }
 
     .assets-grid::-webkit-scrollbar {
       width: 6px;
@@ -577,7 +620,7 @@
       background: var(--card-bg);
       border: 1px solid var(--border-color);
       border-radius: 16px;
-      padding: 1rem;
+      padding: var(--gallery-card-padding, 10px);
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -603,14 +646,15 @@
       box-shadow: 0 0 20px rgba(16, 185, 129, 0.45);
       background: rgba(16, 185, 129, 0.08);
       transform: scale(1.03);
+      aspect-ratio: auto;
+      min-height: 190px;
     }
 
     .asset-card.playing::after {
       content: '● EN VIVO';
       position: absolute;
-      bottom: 8px;
-      left: 50%;
-      transform: translateX(-50%);
+      top: 8px;
+      right: 8px;
       font-size: 0.65rem;
       font-weight: 800;
       color: #ffffff;
@@ -622,9 +666,104 @@
       box-shadow: 0 2px 8px rgba(16, 185, 129, 0.5);
     }
 
+    .asset-card.video-card .asset-tag { top: 42px; right: 8px; }
+    .asset-card.video-card.playing::after { right: auto; left: 8px; }
+    .video-options-trigger {
+      position: absolute; top: 7px; right: 7px; z-index: 4; display: grid; place-items: center;
+      width: 28px; height: 28px; border: 1px solid rgba(255,255,255,0.2); border-radius: 8px;
+      background: rgba(8,10,18,0.82); color: #e2e8f0; font-size: 16px; cursor: pointer;
+      transition: background 0.18s ease, border-color 0.18s ease, transform 0.18s ease;
+    }
+    .video-options-trigger:hover, .video-options-trigger:focus-visible { background: var(--primary); border-color: #a5b4fc; transform: rotate(25deg); outline: none; }
+    .video-options-dialog {
+      width: min(490px, calc(100vw - 28px)); max-height: calc(100vh - 32px); margin: auto; padding: 0;
+      overflow: auto; border: 1px solid rgba(165,180,252,0.28); border-radius: 18px;
+      background: #171725; color: var(--text-main); box-shadow: 0 24px 80px rgba(0,0,0,0.65);
+    }
+    .video-options-dialog::backdrop { background: rgba(3,5,12,0.74); backdrop-filter: blur(5px); }
+    .video-options-content { display: grid; gap: 15px; padding: 21px; }
+    .video-options-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+    .video-options-heading h2 { font-size: 1.05rem; }
+    .video-options-heading p, .video-options-description { margin-top: 5px; color: var(--text-muted); font-size: 0.77rem; line-height: 1.55; }
+    .video-options-close { flex: 0 0 auto; width: 30px; height: 30px; border: 1px solid var(--border-color); border-radius: 8px; background: rgba(255,255,255,0.06); color: #fff; cursor: pointer; }
+    .video-options-filename { overflow-wrap: anywhere; color: #a5b4fc; font-size: 0.8rem; font-weight: 700; }
+    .video-info-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 9px; }
+    .video-info-card { display: grid; gap: 5px; min-width: 0; padding: 11px; border: 1px solid var(--border-color); border-radius: 10px; background: rgba(255,255,255,0.035); text-align: left; }
+    .video-info-card span { color: var(--text-muted); font-size: 0.68rem; }
+    .video-info-card strong { overflow-wrap: anywhere; color: #f8fafc; font-size: 0.8rem; font-variant-numeric: tabular-nums; }
+    .video-info-card small { overflow-wrap: anywhere; color: #a5b4fc; font-size: 0.7rem; }
+    .video-analysis-row { display: flex; align-items: center; flex-wrap: wrap; gap: 9px; }
+    .video-analysis-button { width: auto; padding: 7px 10px; border: 1px solid rgba(165,180,252,0.3); border-radius: 8px; background: rgba(99,102,241,0.14); color: #c7d2fe; font: inherit; font-size: 0.7rem; font-weight: 700; cursor: pointer; }
+    .video-analysis-button:disabled { opacity: 0.55; cursor: wait; }
+    .video-analysis-status { color: var(--text-muted); font-size: 0.69rem; }
+    .video-compression-options { display: grid; gap: 9px; }
+    .video-compression-option { display: flex; align-items: flex-start; gap: 10px; padding: 12px; border: 1px solid var(--border-color); border-radius: 11px; background: rgba(255,255,255,0.035); cursor: pointer; }
+    .video-compression-option:has(input:checked) { border-color: var(--primary); background: rgba(99,102,241,0.13); }
+    .video-compression-option input { flex: 0 0 auto; margin: 3px 0 0; accent-color: var(--primary); }
+    .video-compression-option span { display: grid; gap: 4px; text-align: left; }
+    .video-compression-option strong { font-size: 0.79rem; }
+    .video-compression-option small { color: var(--text-muted); font-size: 0.7rem; line-height: 1.5; }
+    .video-compression-status { padding: 10px 12px; border: 1px solid rgba(99,102,241,0.35); border-radius: 9px; background: rgba(99,102,241,0.1); color: #c7d2fe; font-size: 0.76rem; line-height: 1.5; overflow-wrap: anywhere; }
+    .video-compression-status.error { border-color: rgba(239,68,68,0.4); background: rgba(239,68,68,0.1); color: #fecaca; }
+    .video-compression-progress { display: grid; gap: 6px; }
+    .video-compression-progress[hidden] { display: none; }
+    .video-compression-progress progress { width: 100%; height: 12px; accent-color: var(--primary); }
+    .video-compression-progress span { color: var(--text-muted); font-size: 0.69rem; }
+    .video-options-actions { display: flex; justify-content: flex-end; gap: 9px; }
+    .video-options-actions button { width: auto; min-width: 100px; padding: 9px 12px; border: 1px solid var(--border-color); border-radius: 9px; background: rgba(255,255,255,0.07); color: #fff; font: inherit; font-size: 0.76rem; cursor: pointer; }
+    .video-options-actions button.primary { border-color: var(--primary); background: var(--primary); font-weight: 700; }
+    .video-options-actions button:disabled { opacity: 0.55; cursor: wait; }
+    @media (max-width: 450px) { .video-info-grid { grid-template-columns: 1fr; } }
+
+    .playback-dock {
+      display: none;
+      position: fixed;
+      inset: auto 0 0;
+      z-index: 1000;
+      min-height: 56px;
+      align-items: center;
+      gap: 0.65rem;
+      padding: 0.4rem 0.85rem;
+      border-top: 1px solid rgba(148, 163, 184, 0.28);
+      background: rgba(10, 12, 21, 0.97);
+      box-shadow: 0 -12px 35px rgba(0, 0, 0, 0.42);
+      backdrop-filter: blur(16px);
+    }
+    .playback-dock.visible { display: flex; }
+    body.has-playback-dock { padding-bottom: 66px; }
+    .playback-dock-info { display: flex; flex: 0 1 205px; min-width: 130px; align-items: center; gap: 0.55rem; }
+    .playback-dock-title { overflow: hidden; color: #f8fafc; font-size: 0.78rem; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
+    .playback-dock-state { color: var(--text-muted); font-size: 0.65rem; }
+    .playback-dock-button {
+      flex: 0 0 auto;
+      width: 2rem;
+      height: 2rem;
+      border: 1px solid rgba(255, 255, 255, 0.16);
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.09);
+      color: #fff;
+      font-size: 0.85rem;
+      cursor: pointer;
+    }
+    .playback-dock-button:hover { border-color: var(--primary); background: var(--primary); }
+    .playback-dock-track { display: flex; flex: 1 1 auto; min-width: 150px; align-items: center; gap: 0.5rem; }
+    .playback-dock-track input { min-width: 0; flex: 1; accent-color: var(--success); cursor: pointer; }
+    .playback-dock-time { min-width: 3.1rem; color: var(--text-secondary); font-size: 0.75rem; font-variant-numeric: tabular-nums; text-align: center; }
+    .playback-dock-audio { display: flex; flex: 0 1 270px; min-width: 175px; align-items: center; gap: 0.5rem; font-size: 0.72rem; }
+    .playback-dock-audio input { min-width: 50px; flex: 1; accent-color: var(--success); cursor: pointer; }
+    .playback-dock-volume { min-width: 3rem; color: var(--text-secondary); font-size: 0.75rem; font-variant-numeric: tabular-nums; text-align: right; }
+    @media (max-width: 760px) {
+      .playback-dock { flex-wrap: wrap; gap: 0.35rem 0.65rem; padding: 0.4rem 0.65rem; }
+      body.has-playback-dock { padding-bottom: 102px; }
+      .playback-dock-info { flex: 1 1 40%; }
+      .playback-dock-audio { flex: 1 1 55%; min-width: 140px; }
+      .playback-dock-track { order: 3; flex-basis: 100%; }
+      .assets-grid-toolbar { justify-content: space-between; }
+    }
+
     .asset-thumbnail-box {
       width: 100%;
-      height: 96px;
+      height: var(--gallery-preview-height, 80px);
       border-radius: 10px;
       background: rgba(0, 0, 0, 0.35);
       border: 1px solid rgba(255, 255, 255, 0.06);
@@ -632,7 +771,7 @@
       align-items: center;
       justify-content: center;
       overflow: hidden;
-      margin-bottom: 0.65rem;
+      margin-bottom: 0.4rem;
       position: relative;
     }
 
@@ -653,7 +792,7 @@
     }
 
     .asset-name {
-      font-size: 0.88rem;
+      font-size: var(--gallery-font-size, 14px);
       font-weight: 600;
       color: var(--text-main);
       display: -webkit-box;
@@ -710,36 +849,6 @@
       background: rgba(16, 185, 129, 0.25);
       color: #6ee7b7;
       border: 1px solid rgba(110, 231, 183, 0.3);
-    }
-
-    /* Toggle de silencio directo en la tarjeta */
-    .audio-badge {
-      position: absolute;
-      top: 8px;
-      left: 8px;
-      z-index: 2;
-      font-size: 0.75rem;
-      padding: 3px 6px;
-      border-radius: 6px;
-      background: rgba(0, 0, 0, 0.65);
-      border: 1px solid rgba(255, 255, 255, 0.15);
-      color: var(--text-muted);
-      display: flex;
-      align-items: center;
-      gap: 3px;
-      cursor: pointer;
-      transition: all 0.2s;
-    }
-
-    .audio-badge:hover {
-      background: rgba(0, 0, 0, 0.9);
-      border-color: var(--primary);
-      color: #ffffff;
-    }
-
-    .audio-badge.unmuted {
-      color: #34d399;
-      border-color: rgba(52, 211, 153, 0.4);
     }
 
     /* Panel de logs inferior */
@@ -924,7 +1033,10 @@
     <div class="panel">
       <div class="gallery-header">
         <div class="gallery-top-row">
-          <span class="panel-title" style="margin: 0; padding: 0; border: none;">🗂️ Galería Multimedia</span>
+          <div class="gallery-heading">
+            <span class="panel-title" style="margin: 0; padding: 0; border: none;">🗂️ Galería Multimedia</span>
+            <button class="gallery-settings-toggle" id="btn-gallery-settings" type="button" title="Personalizar tamaño y densidad de la galería" aria-label="Personalizar galería" aria-expanded="false" aria-controls="gallery-settings-panel">⚙</button>
+          </div>
           
           <div style="display: flex; gap: 0.6rem; align-items: center;">
             <!-- Botón para Mostrar / Ocultar Carpetas (Estilo Windows Explorer) -->
@@ -935,6 +1047,42 @@
               🔄 Actualizar
             </button>
           </div>
+        </div>
+
+        <div class="gallery-settings-panel" id="gallery-settings-panel" hidden>
+          <div class="gallery-settings-head">
+            <strong>Personalizar galería</strong>
+            <button class="gallery-settings-close" id="btn-gallery-settings-close" type="button" aria-label="Cerrar ajustes">✕</button>
+          </div>
+          <label class="gallery-setting-row" for="gallery-setting-card-width">
+            <span>Ancho mínimo de tarjeta <output id="gallery-setting-card-width-value">150 px</output></span>
+            <input id="gallery-setting-card-width" type="range" min="120" max="280" step="10" value="150">
+          </label>
+          <label class="gallery-setting-row" for="gallery-setting-font-size">
+            <span>Tamaño de letra <output id="gallery-setting-font-size-value">14 px</output></span>
+            <input id="gallery-setting-font-size" type="range" min="11" max="20" step="1" value="14">
+          </label>
+          <label class="gallery-setting-row" for="gallery-setting-preview-height">
+            <span>Alto de miniatura <output id="gallery-setting-preview-height-value">78 px</output></span>
+            <input id="gallery-setting-preview-height" type="range" min="55" max="170" step="5" value="80">
+          </label>
+          <label class="gallery-setting-row" for="gallery-setting-gap">
+            <span>Separación entre tarjetas <output id="gallery-setting-gap-value">10 px</output></span>
+            <input id="gallery-setting-gap" type="range" min="4" max="20" step="1" value="10">
+          </label>
+          <label class="gallery-setting-row" for="gallery-setting-header-size">
+            <span>Tamaño del encabezado <output id="gallery-setting-header-size-value">90%</output></span>
+            <input id="gallery-setting-header-size" type="range" min="80" max="120" step="5" value="90">
+          </label>
+          <button class="gallery-settings-reset" id="btn-gallery-settings-reset" type="button">Restablecer ajustes</button>
+          <span class="gallery-settings-saved">Los cambios se guardan automáticamente en este navegador.</span>
+        </div>
+
+        <div class="gallery-top-row" style="justify-content: flex-start; gap: 0.6rem;">
+          <span style="color: var(--text-muted); font-size: 0.82rem;">Carpeta principal:</span>
+          <code id="media-folder-path" style="color: var(--text-secondary); font-size: 0.8rem; overflow-wrap: anywhere;">Cargando…</code>
+          <button class="btn btn-primary" id="btn-select-media-folder" style="width: auto; padding: 0.45rem 0.75rem; font-size: 0.82rem; border-radius: 9px;" title="Elegir otra carpeta principal">📁 Elegir carpeta</button>
+          <button class="btn btn-primary" id="btn-open-media-folder" style="width: auto; padding: 0.45rem 0.75rem; font-size: 0.82rem; border-radius: 9px;" title="Abrir esta carpeta en el Explorador de archivos">📂 Abrir carpeta</button>
         </div>
 
         <div class="gallery-top-row">
@@ -958,6 +1106,14 @@
         <div class="crumbs-list" id="crumbs-list"></div>
       </div>
 
+      <div class="assets-grid-toolbar" aria-label="Densidad de la galería">
+        <label for="gallery-card-size">
+          <span>📐 Tamaño de tarjetas</span>
+          <input id="gallery-card-size" type="range" min="120" max="280" step="10" value="150" aria-label="Ancho mínimo de las tarjetas">
+          <output id="gallery-card-size-value">150 px</output>
+        </label>
+      </div>
+
       <!-- Grid de elementos (Archivos y Carpetas) -->
       <div class="assets-grid" id="assets-grid">
         <!-- Renderizado dinámico -->
@@ -973,6 +1129,68 @@
     </div>
   </div>
 
+  <div class="playback-dock" id="playback-dock" aria-label="Controles del medio en reproducción">
+    <div class="playback-dock-info">
+      <button class="playback-dock-button" id="playback-dock-toggle" type="button" title="Pausar" aria-label="Pausar medio">⏸</button>
+      <div style="min-width: 0;">
+        <div class="playback-dock-title" id="playback-dock-title">Sin reproducción</div>
+        <div class="playback-dock-state" id="playback-dock-state">TriggerStudio</div>
+      </div>
+    </div>
+    <div class="playback-dock-track">
+      <span class="playback-dock-time" id="playback-dock-current">0:00</span>
+      <input id="playback-dock-seek" type="range" min="0" max="1000" step="1" value="0" aria-label="Posición del medio" disabled>
+      <span class="playback-dock-time" id="playback-dock-duration">0:00</span>
+    </div>
+    <div class="playback-dock-audio">
+      <button class="playback-dock-button" id="playback-dock-mute" type="button" title="Silenciar" aria-label="Silenciar medio">🔊</button>
+      <span aria-hidden="true">Volumen</span>
+      <input id="playback-dock-volume" type="range" min="0" max="200" step="1" value="100" aria-label="Volumen del medio">
+      <span class="playback-dock-volume" id="playback-dock-volume-value">100%</span>
+    </div>
+  </div>
+
+  <dialog class="video-options-dialog" id="video-options-dialog" aria-labelledby="video-options-title">
+    <div class="video-options-content">
+      <div class="video-options-heading">
+        <div>
+          <h2 id="video-options-title">⚙ Opciones avanzadas del video</h2>
+          <p>La compresión se ejecuta en el PC que aloja TriggerStudio.</p>
+        </div>
+        <button class="video-options-close" id="video-options-close" type="button" aria-label="Cerrar opciones">✕</button>
+      </div>
+      <div class="video-options-filename" id="video-options-filename"></div>
+      <div class="video-info-grid" aria-live="polite">
+        <div class="video-info-card"><span>Video original</span><strong id="video-original-size">Leyendo tamaño…</strong><small id="video-original-resolution">Consultando resolución…</small></div>
+        <div class="video-info-card"><span id="video-output-label">Resultado previsto</span><strong id="video-output-size">Se mostrará al terminar</strong><small id="video-output-resolution">Leyendo resolución…</small></div>
+      </div>
+      <div class="video-analysis-row">
+        <button class="video-analysis-button" id="video-analyze-button" type="button">🔎 Analizar archivo</button>
+        <span class="video-analysis-status" id="video-analysis-status" role="status" aria-live="polite">Consulta el tamaño actual y la resolución antes de comprimir.</span>
+      </div>
+      <p class="video-options-description">Al finalizar, el video original se reemplaza por la versión comprimida. Si la conversión falla, el original queda intacto.</p>
+      <div class="video-compression-options" role="radiogroup" aria-label="Modo de compresión">
+        <label class="video-compression-option">
+          <input type="radio" name="video-compression-mode" value="keep" checked>
+          <span><strong>Optimizar y mantener resolución</strong><small>Conserva ancho y alto, con calidad alta. Recomendado para videos que ya están en 720p.</small></span>
+        </label>
+        <label class="video-compression-option">
+          <input type="radio" name="video-compression-mode" value="720p">
+          <span><strong>Reducir a máximo 720p</strong><small>Para videos mayores de 720p. Mantiene la proporción y no amplía videos de menor resolución.</small></span>
+        </label>
+      </div>
+      <div class="video-compression-status" id="video-compression-status" role="status" aria-live="polite" hidden></div>
+      <div class="video-compression-progress" id="video-compression-progress-wrap" hidden>
+        <progress id="video-compression-progress" max="100" value="0" aria-label="Progreso de compresión"></progress>
+        <span id="video-compression-progress-label">Preparando video…</span>
+      </div>
+      <div class="video-options-actions">
+        <button id="video-options-cancel" type="button">Cancelar</button>
+        <button class="primary" id="video-compress-start" type="button">Comprimir y reemplazar</button>
+      </div>
+    </div>
+  </dialog>
+
   <script>
     const statusServer = document.getElementById('status-server');
     const statusObs = document.getElementById('status-obs');
@@ -986,11 +1204,123 @@
     const breadcrumbsBar = document.getElementById('breadcrumbs-bar');
     const btnBackCrumb = document.getElementById('btn-back-crumb');
     const crumbsList = document.getElementById('crumbs-list');
+    const mediaFolderPath = document.getElementById('media-folder-path');
+    const btnSelectMediaFolder = document.getElementById('btn-select-media-folder');
+    const btnOpenMediaFolder = document.getElementById('btn-open-media-folder');
+    const playbackDock = document.getElementById('playback-dock');
+    const playbackDockToggle = document.getElementById('playback-dock-toggle');
+    const playbackDockTitle = document.getElementById('playback-dock-title');
+    const playbackDockState = document.getElementById('playback-dock-state');
+    const playbackDockCurrent = document.getElementById('playback-dock-current');
+    const playbackDockDuration = document.getElementById('playback-dock-duration');
+    const playbackDockSeek = document.getElementById('playback-dock-seek');
+    const playbackDockMute = document.getElementById('playback-dock-mute');
+    const playbackDockVolume = document.getElementById('playback-dock-volume');
+    const playbackDockVolumeValue = document.getElementById('playback-dock-volume-value');
+    const gallerySettingsToggle = document.getElementById('btn-gallery-settings');
+    const gallerySettingsPanel = document.getElementById('gallery-settings-panel');
+    const gallerySettingsClose = document.getElementById('btn-gallery-settings-close');
+    const gallerySettingsReset = document.getElementById('btn-gallery-settings-reset');
+    const galleryHeader = document.querySelector('.gallery-header');
+    const galleryCardSize = document.getElementById('gallery-card-size');
+    const galleryCardSizeValue = document.getElementById('gallery-card-size-value');
+    const gallerySettingCardWidth = document.getElementById('gallery-setting-card-width');
+    const gallerySettingCardWidthValue = document.getElementById('gallery-setting-card-width-value');
+    const gallerySettingFontSize = document.getElementById('gallery-setting-font-size');
+    const gallerySettingFontSizeValue = document.getElementById('gallery-setting-font-size-value');
+    const gallerySettingPreviewHeight = document.getElementById('gallery-setting-preview-height');
+    const gallerySettingPreviewHeightValue = document.getElementById('gallery-setting-preview-height-value');
+    const gallerySettingGap = document.getElementById('gallery-setting-gap');
+    const gallerySettingGapValue = document.getElementById('gallery-setting-gap-value');
+    const gallerySettingHeaderSize = document.getElementById('gallery-setting-header-size');
+    const gallerySettingHeaderSizeValue = document.getElementById('gallery-setting-header-size-value');
+    const videoOptionsDialog = document.getElementById('video-options-dialog');
+    const videoOptionsFilename = document.getElementById('video-options-filename');
+    const videoCompressionStatus = document.getElementById('video-compression-status');
+    const videoOptionsClose = document.getElementById('video-options-close');
+    const videoOptionsCancel = document.getElementById('video-options-cancel');
+    const videoCompressStart = document.getElementById('video-compress-start');
+    const videoOriginalSize = document.getElementById('video-original-size');
+    const videoOriginalResolution = document.getElementById('video-original-resolution');
+    const videoOutputLabel = document.getElementById('video-output-label');
+    const videoOutputSize = document.getElementById('video-output-size');
+    const videoOutputResolution = document.getElementById('video-output-resolution');
+    const videoAnalyzeButton = document.getElementById('video-analyze-button');
+    const videoAnalysisStatus = document.getElementById('video-analysis-status');
+    const videoCompressionProgressWrap = document.getElementById('video-compression-progress-wrap');
+    const videoCompressionProgress = document.getElementById('video-compression-progress');
+    const videoCompressionProgressLabel = document.getElementById('video-compression-progress-label');
 
     let allAssets = [];
     let currentCategoryFilter = 'all';
     let searchQuery = '';
     let ws;
+    let activePlayback = null;
+    let selectedVideoAsset = null;
+    let selectedVideoResolution = null;
+    let videoCompressionBusy = false;
+    let videoAnalysisBusy = false;
+    let videoCompressionDone = false;
+
+    const galleryPreferencesKey = 'trigger_gallery_display_preferences_v1';
+    const defaultGalleryPreferences = { cardWidth: 150, fontSize: 14, previewHeight: 80, gap: 10, headerSize: 90 };
+    function normalizeGalleryValue(value, fallback, min, max, step) {
+      const numeric = Number(value);
+      if (!Number.isFinite(numeric)) return fallback;
+      return min + Math.round((Math.max(min, Math.min(max, numeric)) - min) / step) * step;
+    }
+    function loadGalleryPreferences() {
+      try {
+        const saved = JSON.parse(localStorage.getItem(galleryPreferencesKey) || 'null');
+        if (!saved || typeof saved !== 'object') return { ...defaultGalleryPreferences };
+        return {
+          cardWidth: normalizeGalleryValue(saved.cardWidth, defaultGalleryPreferences.cardWidth, 120, 280, 10),
+          fontSize: normalizeGalleryValue(saved.fontSize, defaultGalleryPreferences.fontSize, 11, 20, 1),
+          previewHeight: normalizeGalleryValue(saved.previewHeight, defaultGalleryPreferences.previewHeight, 55, 170, 5),
+          gap: normalizeGalleryValue(saved.gap, defaultGalleryPreferences.gap, 4, 20, 1),
+          headerSize: normalizeGalleryValue(saved.headerSize, defaultGalleryPreferences.headerSize, 80, 120, 5)
+        };
+      } catch { return { ...defaultGalleryPreferences }; }
+    }
+    let galleryPreferences = loadGalleryPreferences();
+
+    function applyGalleryPreferences() {
+      assetsGrid.style.setProperty('--gallery-card-min-width', `${galleryPreferences.cardWidth}px`);
+      assetsGrid.style.setProperty('--gallery-font-size', `${galleryPreferences.fontSize}px`);
+      assetsGrid.style.setProperty('--gallery-preview-height', `${galleryPreferences.previewHeight}px`);
+      assetsGrid.style.setProperty('--gallery-grid-gap', `${galleryPreferences.gap}px`);
+      assetsGrid.style.setProperty('--gallery-card-padding', `${Math.max(6, Math.min(12, Math.round(galleryPreferences.cardWidth * 0.065)))}px`);
+      const headerScale = galleryPreferences.headerSize / 100;
+      galleryHeader.style.setProperty('--gallery-header-row-gap', `${Math.round(16 * headerScale)}px`);
+      galleryHeader.style.setProperty('--gallery-header-bottom-space', `${Math.round(20 * headerScale)}px`);
+      galleryHeader.style.setProperty('--gallery-header-item-gap', `${Math.round(14 * headerScale)}px`);
+      galleryHeader.style.setProperty('--gallery-header-title-size', `${Math.round(16.8 * headerScale * 10) / 10}px`);
+
+      galleryCardSize.value = String(galleryPreferences.cardWidth);
+      galleryCardSizeValue.textContent = `${galleryPreferences.cardWidth} px`;
+      gallerySettingCardWidth.value = String(galleryPreferences.cardWidth);
+      gallerySettingCardWidthValue.textContent = `${galleryPreferences.cardWidth} px`;
+      gallerySettingFontSize.value = String(galleryPreferences.fontSize);
+      gallerySettingFontSizeValue.textContent = `${galleryPreferences.fontSize} px`;
+      gallerySettingPreviewHeight.value = String(galleryPreferences.previewHeight);
+      gallerySettingPreviewHeightValue.textContent = `${galleryPreferences.previewHeight} px`;
+      gallerySettingGap.value = String(galleryPreferences.gap);
+      gallerySettingGapValue.textContent = `${galleryPreferences.gap} px`;
+      gallerySettingHeaderSize.value = String(galleryPreferences.headerSize);
+      gallerySettingHeaderSizeValue.textContent = `${galleryPreferences.headerSize}%`;
+
+      try { localStorage.setItem(galleryPreferencesKey, JSON.stringify(galleryPreferences)); } catch { /* La vista actual conserva los ajustes aunque el almacenamiento esté bloqueado. */ }
+    }
+
+    function setGallerySettingsOpen(open) {
+      gallerySettingsPanel.hidden = !open;
+      gallerySettingsToggle.setAttribute('aria-expanded', String(open));
+    }
+
+    function updateGalleryPreference(key, value) {
+      galleryPreferences[key] = Number(value);
+      applyGalleryPreferences();
+    }
     
     // Ruta actual de navegación dentro de carpetas (ej. '' es la raíz, 'videos', 'videos/cumple')
     let currentNavPath = '';
@@ -998,6 +1328,11 @@
     // Modo de visualización:
     // true = Muestra carpetas como en Windows (hacer clic para entrar).
     // false = Muestra todos los archivos planos uno al lado del otro.
+    const foldersDefaultKey = 'trigger_folder_default_activated_v1';
+    if (localStorage.getItem(foldersDefaultKey) !== 'true') {
+      localStorage.setItem('trigger_show_folders', 'true');
+      localStorage.setItem(foldersDefaultKey, 'true');
+    }
     let showFolders = localStorage.getItem('trigger_show_folders') !== 'false';
     let customMutes = JSON.parse(localStorage.getItem('trigger_custom_mutes') || '{}');
 
@@ -1023,6 +1358,27 @@
       log(showFolders ? 'Modo carpetas activado (Haz 1 clic en una carpeta para entrar) 📁' : 'Modo plano activado (todos los archivos juntos) 📋', 'info');
     };
 
+    gallerySettingsToggle.onclick = () => setGallerySettingsOpen(gallerySettingsPanel.hidden);
+    gallerySettingsClose.onclick = () => setGallerySettingsOpen(false);
+    gallerySettingsReset.onclick = () => {
+      galleryPreferences = { ...defaultGalleryPreferences };
+      applyGalleryPreferences();
+    };
+    galleryCardSize.oninput = () => updateGalleryPreference('cardWidth', galleryCardSize.value);
+    gallerySettingCardWidth.oninput = () => updateGalleryPreference('cardWidth', gallerySettingCardWidth.value);
+    gallerySettingFontSize.oninput = () => updateGalleryPreference('fontSize', gallerySettingFontSize.value);
+    gallerySettingPreviewHeight.oninput = () => updateGalleryPreference('previewHeight', gallerySettingPreviewHeight.value);
+    gallerySettingGap.oninput = () => updateGalleryPreference('gap', gallerySettingGap.value);
+    gallerySettingHeaderSize.oninput = () => updateGalleryPreference('headerSize', gallerySettingHeaderSize.value);
+    document.addEventListener('pointerdown', event => {
+      if (!gallerySettingsPanel.hidden && !gallerySettingsPanel.contains(event.target) && !gallerySettingsToggle.contains(event.target)) {
+        setGallerySettingsOpen(false);
+      }
+    });
+    document.addEventListener('keydown', event => {
+      if (event.key === 'Escape' && !gallerySettingsPanel.hidden) setGallerySettingsOpen(false);
+    });
+
     function log(message, type = 'info') {
       const date = new Date().toLocaleTimeString();
       const entry = document.createElement('div');
@@ -1043,6 +1399,235 @@
       const host = getServerHost();
       return `http://${host}`;
     }
+
+    function openVideoOptions(asset) {
+      selectedVideoAsset = asset;
+      selectedVideoResolution = null;
+      videoOptionsFilename.textContent = asset.name || asset.file;
+      document.querySelector('input[name="video-compression-mode"][value="keep"]').checked = true;
+      videoOriginalSize.textContent = asset.sizeBytes ? formatFileSize(asset.sizeBytes) : 'No disponible';
+      videoOriginalResolution.textContent = 'Consultando resolución…';
+      videoOutputLabel.textContent = 'Resultado previsto';
+      videoOutputSize.textContent = 'Se mostrará al terminar';
+      videoOutputResolution.textContent = 'Consultando resolución…';
+      videoAnalysisStatus.textContent = 'Consulta el tamaño actual y la resolución antes de comprimir.';
+      videoAnalysisStatus.classList.remove('error');
+      videoAnalyzeButton.disabled = false;
+      videoAnalyzeButton.textContent = '🔎 Analizar archivo';
+      videoCompressionDone = false;
+      videoCompressionProgressWrap.hidden = true;
+      videoCompressionProgress.value = 0;
+      videoCompressionProgressLabel.textContent = 'Preparando video…';
+      videoCompressionStatus.hidden = true;
+      videoCompressionStatus.classList.remove('error');
+      videoCompressStart.disabled = false;
+      videoCompressStart.textContent = 'Comprimir y reemplazar';
+      videoOptionsCancel.textContent = 'Cancelar';
+      document.querySelectorAll('input[name="video-compression-mode"]').forEach(input => { input.disabled = false; });
+      updateVideoResolutionPreview();
+      videoOptionsDialog.showModal();
+      probeVideoResolution(asset).then(resolution => {
+        if (!selectedVideoAsset || selectedVideoAsset.id !== asset.id) return;
+        selectedVideoResolution = resolution;
+        videoOriginalResolution.textContent = formatResolution(resolution) || 'Resolución no disponible';
+        updateVideoResolutionPreview();
+      });
+    }
+
+    function formatResolution(resolution) {
+      return resolution?.width && resolution?.height ? `${resolution.width} × ${resolution.height} px` : '';
+    }
+
+    function get720pResolution(resolution) {
+      if (!resolution?.width || !resolution?.height) return null;
+      const landscape = resolution.width >= resolution.height;
+      const maxWidth = landscape ? 1280 : 720;
+      const maxHeight = landscape ? 720 : 1280;
+      const scale = Math.min(1, maxWidth / resolution.width, maxHeight / resolution.height);
+      return {
+        width: Math.max(2, Math.floor(resolution.width * scale / 2) * 2),
+        height: Math.max(2, Math.floor(resolution.height * scale / 2) * 2)
+      };
+    }
+
+    function updateVideoResolutionPreview() {
+      if (!selectedVideoAsset) return;
+      const mode = document.querySelector('input[name="video-compression-mode"]:checked')?.value;
+      const expected = mode === '720p' ? get720pResolution(selectedVideoResolution) : selectedVideoResolution;
+      videoOutputLabel.textContent = 'Copia prevista';
+      videoOutputSize.textContent = 'Se mostrará al terminar';
+      videoOutputResolution.textContent = formatResolution(expected) || (mode === '720p' ? 'Máximo 720p · consultando original' : 'Igual a la resolución original');
+    }
+
+    function probeVideoResolution(asset) {
+      return new Promise(resolve => {
+        const probe = document.createElement('video');
+        let finished = false;
+        const finish = resolution => {
+          if (finished) return;
+          finished = true;
+          clearTimeout(timeout);
+          probe.onloadedmetadata = null;
+          probe.onerror = null;
+          probe.removeAttribute('src');
+          probe.load();
+          resolve(resolution);
+        };
+        const timeout = setTimeout(() => finish(null), 15000);
+        probe.preload = 'metadata';
+        probe.muted = true;
+        probe.onloadedmetadata = () => finish({ width: probe.videoWidth, height: probe.videoHeight });
+        probe.onerror = () => finish(null);
+        const encodedFile = asset.file.split('/').map(part => encodeURIComponent(part)).join('/');
+        probe.src = `${getServerOrigin()}/media/${encodedFile}`;
+        probe.load();
+      });
+    }
+
+    function formatFileSize(bytes) {
+      const size = Math.max(0, Number(bytes) || 0);
+      if (size < 1000 * 1000) return `${(size / 1000).toFixed(0)} KB`;
+      return `${(size / (1000 * 1000)).toFixed(2)} MB`;
+    }
+
+    async function analyzeSelectedVideo() {
+      if (!selectedVideoAsset || videoAnalysisBusy || videoCompressionBusy) return;
+      const asset = selectedVideoAsset;
+      videoAnalysisBusy = true;
+      videoAnalyzeButton.disabled = true;
+      videoAnalyzeButton.textContent = 'Analizando…';
+      videoCompressStart.disabled = true;
+      videoAnalysisStatus.classList.remove('error');
+      videoAnalysisStatus.textContent = 'Leyendo el archivo en disco y consultando sus metadatos…';
+      try {
+        const response = await fetch(`${getServerOrigin()}/api/media/analyze`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ file: asset.file })
+        });
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error || 'No se pudo analizar el video.');
+        const resolution = await probeVideoResolution(asset);
+        if (selectedVideoAsset?.id !== asset.id) return;
+
+        asset.sizeBytes = result.sizeBytes;
+        selectedVideoResolution = resolution;
+        videoOriginalSize.textContent = formatFileSize(result.sizeBytes);
+        videoOriginalResolution.textContent = formatResolution(resolution) || 'Resolución no disponible';
+        updateVideoResolutionPreview();
+        videoAnalysisStatus.textContent = `Datos actualizados desde el disco · ${formatFileSize(result.sizeBytes)}${resolution ? ` · ${formatResolution(resolution)}` : ''}`;
+        log(`Análisis de video: ${asset.name} · ${formatFileSize(result.sizeBytes)}${resolution ? ` · ${formatResolution(resolution)}` : ''}`, 'success');
+      } catch (error) {
+        if (selectedVideoAsset?.id === asset.id) {
+          videoAnalysisStatus.classList.add('error');
+          videoAnalysisStatus.textContent = error.message || 'No se pudo analizar el video.';
+        }
+      } finally {
+        videoAnalysisBusy = false;
+        videoAnalyzeButton.disabled = false;
+        videoAnalyzeButton.textContent = '🔎 Analizar archivo';
+        videoCompressStart.disabled = videoCompressionDone;
+      }
+    }
+
+    async function compressSelectedVideo() {
+      if (!selectedVideoAsset || videoCompressionBusy || videoAnalysisBusy) return;
+      const asset = selectedVideoAsset;
+      const selectedMode = document.querySelector('input[name="video-compression-mode"]:checked')?.value;
+      videoCompressionBusy = true;
+      videoCompressStart.disabled = true;
+      videoCompressStart.textContent = 'Comprimiendo…';
+      videoOptionsCancel.disabled = true;
+      videoOptionsClose.disabled = true;
+      videoAnalyzeButton.disabled = true;
+      document.querySelectorAll('input[name="video-compression-mode"]').forEach(input => { input.disabled = true; });
+      videoCompressionStatus.hidden = false;
+      videoCompressionStatus.classList.remove('error');
+      videoCompressionStatus.textContent = 'Se está comprimiendo el video en el equipo servidor. El original se sustituirá al completar correctamente.';
+      videoCompressionProgressWrap.hidden = false;
+      videoCompressionProgress.value = 0;
+      videoCompressionProgressLabel.textContent = 'Enviando solicitud…';
+
+      let completed = false;
+      try {
+        const startResponse = await fetch(`${getServerOrigin()}/api/media/compress`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ file: asset.file, mode: selectedMode })
+        });
+        const started = await startResponse.json();
+        if (!startResponse.ok) throw new Error(started.error || 'No se pudo iniciar la compresión.');
+
+        let job;
+        while (true) {
+          const statusResponse = await fetch(`${getServerOrigin()}/api/media/compress/${encodeURIComponent(started.jobId)}`);
+          const status = await statusResponse.json();
+          if (!statusResponse.ok) throw new Error(status.error || 'Se perdió el seguimiento de la compresión.');
+          job = status;
+          videoCompressionProgress.value = Math.max(0, Math.min(100, Number(status.progress) || 0));
+          videoCompressionProgressLabel.textContent = status.phase || 'Comprimiendo video…';
+          videoCompressionStatus.textContent = status.phase || 'Comprimiendo video…';
+          if (status.status === 'failed') throw new Error(status.error || 'FFmpeg no pudo completar la compresión.');
+          if (status.status === 'completed') break;
+          await new Promise(resolve => setTimeout(resolve, 450));
+        }
+
+        const result = job.result;
+        if (!result) throw new Error('La compresión terminó sin devolver los datos del video.');
+        await refreshAssetCatalog();
+        const outputResolution = await probeVideoResolution({ file: result.file });
+        selectedVideoResolution = outputResolution;
+        asset.sizeBytes = result.compressedBytes;
+        videoOriginalSize.textContent = formatFileSize(result.compressedBytes);
+        videoOriginalResolution.textContent = formatResolution(outputResolution) || 'Resolución no disponible';
+        videoOutputLabel.textContent = 'Video reemplazado';
+        videoOutputSize.textContent = formatFileSize(result.compressedBytes);
+        videoOutputResolution.textContent = formatResolution(outputResolution) || (selectedMode === '720p' ? 'Máximo 720p' : 'Resolución conservada');
+        const before = formatFileSize(result.originalBytes);
+        const after = formatFileSize(result.compressedBytes);
+        const savings = Number(result.savedPercent) > 0
+          ? `reducción del ${result.savedPercent}%`
+          : Number(result.savedPercent) < 0
+            ? `quedó ${Math.abs(result.savedPercent)}% más grande`
+            : 'tamaño prácticamente igual';
+        videoCompressionStatus.textContent = `Original reemplazado: ${before} → ${after} (${savings}). La galería ya está actualizada.`;
+        videoCompressionProgress.value = 100;
+        videoCompressionProgressLabel.textContent = 'Compresión completa · video y galería actualizados';
+        log(`Video reemplazado: ${before} → ${after} (${savings}). ${result.file}`, 'success');
+        videoCompressStart.textContent = 'Video reemplazado';
+        videoOptionsCancel.textContent = 'Cerrar';
+        completed = true;
+        videoCompressionDone = true;
+      } catch (error) {
+        videoCompressionStatus.classList.add('error');
+        videoCompressionStatus.textContent = error.message || 'No se pudo comprimir el video.';
+        log('No se pudo comprimir el video: ' + videoCompressionStatus.textContent, 'error');
+      } finally {
+        videoCompressionBusy = false;
+        videoOptionsCancel.disabled = false;
+        videoOptionsClose.disabled = false;
+        videoAnalyzeButton.disabled = false;
+        document.querySelectorAll('input[name="video-compression-mode"]').forEach(input => { input.disabled = false; });
+        videoCompressStart.disabled = completed;
+      }
+    }
+
+    videoCompressStart.onclick = compressSelectedVideo;
+    videoAnalyzeButton.onclick = analyzeSelectedVideo;
+    document.querySelectorAll('input[name="video-compression-mode"]').forEach(input => input.addEventListener('change', updateVideoResolutionPreview));
+    videoOptionsCancel.onclick = () => { if (!videoCompressionBusy && !videoAnalysisBusy) videoOptionsDialog.close(); };
+    videoOptionsClose.onclick = () => { if (!videoCompressionBusy && !videoAnalysisBusy) videoOptionsDialog.close(); };
+    videoOptionsDialog.addEventListener('cancel', event => { if (videoCompressionBusy || videoAnalysisBusy) event.preventDefault(); });
+    videoOptionsDialog.addEventListener('close', () => {
+      selectedVideoAsset = null;
+      selectedVideoResolution = null;
+      videoCompressionDone = false;
+      videoCompressionStatus.hidden = true;
+      videoCompressionProgressWrap.hidden = true;
+      videoCompressStart.disabled = false;
+      videoCompressStart.textContent = 'Comprimir y reemplazar';
+      videoOptionsCancel.textContent = 'Cancelar';
+    });
 
     function connectWS() {
       const host = getServerHost();
@@ -1075,13 +1660,20 @@
           } else if (msg.type === 'media_state') {
             if (msg.state === 'playing') {
               log(`OBS [${msg.sourceName}]: Reproduciendo "${msg.assetName}"${msg.mute ? ' [Silenciado]' : ' [Con audio]'}`, 'info');
-              markAssetPlaying(msg.assetName, true);
+              markAssetPlaying(msg.assetName, true, msg.sourceName, msg.volume, msg.mute, false, 0, 0, msg.assetType);
             } else if (msg.state === 'hidden') {
               log(`OBS [${msg.sourceName}]: Ocultado "${msg.assetName}"`, 'info');
-              markAssetPlaying(msg.assetName, false);
+              markAssetPlaying(msg.assetName, false, msg.sourceName);
             }
+          } else if (msg.type === 'volume') {
+            updateCardVolume(msg.sourceName, msg.volume);
+            log(`OBS [${msg.sourceName}]: volumen confirmado en ${msg.volume}%`, 'success');
+          } else if (msg.type === 'player_state') {
+            updateCardPlayerState(msg.sourceName, msg);
+          } else if (msg.type === 'player_progress') {
+            updateCardPlayerProgress(msg.sourceName, msg);
           } else if (msg.type === 'all_stopped') {
-            log('Todos los medios fueron detenidos en OBS.', 'warning');
+            if (msg.reason !== 'replace') log('Todos los medios fueron detenidos en OBS.', 'warning');
             clearPlayingStates();
           } else if (msg.type === 'success') {
             log(msg.message, 'success');
@@ -1102,23 +1694,173 @@
     }
 
     function syncActiveAssets(activeList) {
-      document.querySelectorAll('.asset-card').forEach(card => card.classList.remove('playing'));
+      document.querySelectorAll('.asset-card').forEach(card => {
+        card.classList.remove('playing');
+        delete card.dataset.sourceName;
+        delete card.dataset.paused;
+      });
+      if (!activeList.length) clearPlaybackDock();
       activeList.forEach(active => {
-        markAssetPlaying(active.asset, true);
+        markAssetPlaying(active.asset, true, active.source, active.volume, active.mute, active.paused, active.currentTime, active.duration, active.type);
       });
     }
 
-    function markAssetPlaying(assetFile, isPlaying) {
+    function markAssetPlaying(assetFile, isPlaying, sourceName, volume, muted, paused, currentTime, duration, assetType) {
+      let matchingCard = null;
       document.querySelectorAll('.asset-card').forEach(card => {
         if (card.dataset.file === assetFile) {
-          if (isPlaying) card.classList.add('playing');
-          else card.classList.remove('playing');
+          matchingCard = card;
+          if (isPlaying) {
+            card.classList.add('playing');
+            if (sourceName) card.dataset.sourceName = sourceName;
+            if (paused !== undefined) card.dataset.paused = paused ? 'true' : 'false';
+          } else {
+            card.classList.remove('playing');
+            delete card.dataset.sourceName;
+            delete card.dataset.paused;
+          }
+        }
+      });
+      if (isPlaying) {
+        updatePlaybackDock({
+          assetFile,
+          sourceName,
+          type: assetType || matchingCard?.dataset.type,
+          assetId: matchingCard?.dataset.assetId,
+          volume,
+          mute: muted,
+          paused,
+          currentTime,
+          duration
+        });
+      } else if (activePlayback && activePlayback.sourceName === sourceName) {
+        clearPlaybackDock();
+      }
+    }
+
+    function formatMediaTime(seconds) {
+      const total = Math.max(0, Math.floor(Number(seconds) || 0));
+      const minutes = Math.floor(total / 60);
+      const remainder = String(total % 60).padStart(2, '0');
+      return `${minutes}:${remainder}`;
+    }
+
+    function updatePlaybackDock(changes = {}) {
+      const assetFile = changes.assetFile || changes.assetName || changes.asset || activePlayback?.assetFile;
+      if (!assetFile) return;
+      const isNewAsset = !activePlayback || activePlayback.assetFile !== assetFile || (changes.sourceName && activePlayback.sourceName !== changes.sourceName);
+      const metadata = allAssets.find(asset => asset.file === assetFile);
+      activePlayback = {
+        ...(isNewAsset ? {} : activePlayback),
+        ...changes,
+        assetFile,
+        type: changes.type || changes.assetType || metadata?.type || activePlayback?.type || 'video',
+        assetId: changes.assetId || metadata?.id || activePlayback?.assetId
+      };
+      const isPlayable = activePlayback.type === 'video' || activePlayback.type === 'audio';
+      playbackDock.classList.toggle('visible', isPlayable);
+      document.body.classList.toggle('has-playback-dock', isPlayable);
+      if (!isPlayable) return;
+
+      playbackDockTitle.textContent = metadata?.name || assetFile.split(/[\\/]/).pop();
+      playbackDockTitle.title = playbackDockTitle.textContent;
+      playbackDockState.textContent = activePlayback.paused ? 'En pausa' : activePlayback.type === 'audio' ? 'Audio en reproducción' : 'En reproducción';
+      playbackDockToggle.textContent = activePlayback.paused ? '▶' : '⏸';
+      playbackDockToggle.title = activePlayback.paused ? 'Reanudar' : 'Pausar';
+      playbackDockToggle.setAttribute('aria-label', activePlayback.paused ? 'Reanudar medio' : 'Pausar medio');
+      playbackDockMute.textContent = activePlayback.mute ? '🔇' : '🔊';
+      playbackDockMute.title = activePlayback.mute ? 'Activar sonido' : 'Silenciar';
+      playbackDockMute.setAttribute('aria-label', playbackDockMute.title);
+
+      const volume = Math.max(0, Math.min(200, Math.round(Number(activePlayback.volume ?? 100))));
+      playbackDockVolume.value = String(volume);
+      playbackDockVolumeValue.textContent = `${volume}%`;
+
+      const duration = Math.max(0, Number(activePlayback.duration) || 0);
+      const currentTime = Math.max(0, Math.min(Number(activePlayback.currentTime) || 0, duration || Number(activePlayback.currentTime) || 0));
+      playbackDockSeek.disabled = duration <= 0;
+      if (playbackDockSeek.dataset.dragging !== 'true') {
+        playbackDockSeek.value = duration > 0 ? String(Math.round(currentTime / duration * 1000)) : '0';
+        playbackDockCurrent.textContent = formatMediaTime(currentTime);
+      }
+      playbackDockDuration.textContent = formatMediaTime(duration);
+
+      document.querySelectorAll('.asset-card.playing').forEach(card => {
+        if (card.dataset.sourceName === activePlayback.sourceName) {
+          card.dataset.paused = activePlayback.paused ? 'true' : 'false';
         }
       });
     }
 
+    function clearPlaybackDock() {
+      activePlayback = null;
+      playbackDock.classList.remove('visible');
+      document.body.classList.remove('has-playback-dock');
+      playbackDockTitle.textContent = 'Sin reproducción';
+      playbackDockState.textContent = 'TriggerStudio';
+      playbackDockCurrent.textContent = '0:00';
+      playbackDockDuration.textContent = '0:00';
+      playbackDockSeek.value = '0';
+      playbackDockSeek.disabled = true;
+      delete playbackDockSeek.dataset.dragging;
+      playbackDockMute.textContent = '🔊';
+      playbackDockVolume.value = '100';
+      playbackDockVolumeValue.textContent = '100%';
+    }
+
+    function toggleActivePlayback() {
+      if (!activePlayback?.sourceName || !ws || ws.readyState !== WebSocket.OPEN) {
+        log('No se pudo controlar el medio: el panel perdió la conexión con TriggerStudio.', 'error');
+        return;
+      }
+      const playback = activePlayback.paused ? 'play' : 'pause';
+      updatePlaybackDock({ paused: playback === 'pause' });
+      ws.send(JSON.stringify({ action: 'playback', sourceName: activePlayback.sourceName, playback }));
+    }
+
+    function setPlaybackMute(muted, savePreference = false) {
+      if (!activePlayback) return;
+      updatePlaybackDock({ mute: !!muted });
+      if (savePreference && activePlayback.assetId) {
+        customMutes[activePlayback.assetId] = !!muted;
+        localStorage.setItem('trigger_custom_mutes', JSON.stringify(customMutes));
+      }
+    }
+
+    function updateCardPlayerState(sourceName, state) {
+      if (!activePlayback || activePlayback.sourceName !== sourceName) return;
+      updatePlaybackDock({
+        mute: state.mute,
+        paused: state.paused,
+        currentTime: state.currentTime,
+        duration: state.duration
+      });
+    }
+
+    function updateCardPlayerProgress(sourceName, progress) {
+      if (!activePlayback || activePlayback.sourceName !== sourceName) return;
+      updatePlaybackDock({
+        currentTime: progress.currentTime,
+        duration: progress.duration,
+        paused: progress.paused
+      });
+    }
+
+    function updateCardVolume(sourceName, volume) {
+      if (!activePlayback || activePlayback.sourceName !== sourceName || !Number.isFinite(Number(volume))) return;
+      const normalized = Math.max(0, Math.min(200, Math.round(Number(volume))));
+      activePlayback.volume = normalized;
+      playbackDockVolume.value = String(normalized);
+      playbackDockVolumeValue.textContent = `${normalized}%`;
+    }
+
     function clearPlayingStates() {
-      document.querySelectorAll('.asset-card').forEach(card => card.classList.remove('playing'));
+      document.querySelectorAll('.asset-card').forEach(card => {
+        card.classList.remove('playing');
+        delete card.dataset.sourceName;
+        delete card.dataset.paused;
+      });
+      clearPlaybackDock();
     }
 
     async function loadAssets() {
@@ -1127,16 +1869,70 @@
         const res = await fetch(`${origin}/api/assets`);
         allAssets = await res.json();
         renderAssets();
+        if (activePlayback) {
+          document.querySelectorAll('.asset-card').forEach(card => {
+            if (card.dataset.file === activePlayback.assetFile) {
+              card.classList.add('playing');
+              card.dataset.sourceName = activePlayback.sourceName;
+              card.dataset.paused = activePlayback.paused ? 'true' : 'false';
+            }
+          });
+          updatePlaybackDock({});
+        }
       } catch (err) {
         log('Error al cargar multimedia: ' + err.message, 'error');
       }
     }
 
+    async function updateMediaFolderPath() {
+      try {
+        const res = await fetch(`${getServerOrigin()}/api/status`);
+        const status = await res.json();
+        mediaFolderPath.textContent = status.mediaPath || 'No disponible';
+        mediaFolderPath.title = status.mediaPath || '';
+      } catch (err) {
+        mediaFolderPath.textContent = 'No se pudo consultar';
+      }
+    }
+
+    btnSelectMediaFolder.onclick = async () => {
+      btnSelectMediaFolder.disabled = true;
+      try {
+        const res = await fetch(`${getServerOrigin()}/api/media-folder/select`, { method: 'POST' });
+        const result = await res.json();
+        if (!res.ok) throw new Error(result.error || 'No se pudo seleccionar la carpeta.');
+        if (result.cancelled) return;
+        currentNavPath = '';
+        mediaFolderPath.textContent = result.mediaPath;
+        mediaFolderPath.title = result.mediaPath;
+        await loadAssets();
+        log(`Carpeta principal actualizada: ${result.mediaPath}`, 'success');
+      } catch (err) {
+        log(err.message, 'error');
+      } finally {
+        btnSelectMediaFolder.disabled = false;
+      }
+    };
+
+    btnOpenMediaFolder.onclick = async () => {
+      try {
+        const res = await fetch(`${getServerOrigin()}/api/media-folder/open`, { method: 'POST' });
+        const result = await res.json();
+        if (!res.ok) throw new Error(result.error || 'No se pudo abrir la carpeta.');
+        log(`Abriendo carpeta: ${result.mediaPath}`, 'info');
+      } catch (err) {
+        log(err.message, 'error');
+      }
+    };
+
     // Renderizar una tarjeta de archivo (Video, Noticia, Audio, Imagen)
     function createCardElement(asset) {
       const card = document.createElement('div');
       card.className = 'asset-card';
+      if (asset.type === 'video') card.classList.add('video-card');
       card.dataset.file = asset.file;
+      card.dataset.assetId = asset.id;
+      card.dataset.type = asset.type;
 
       const isNoticia = asset.category === 'Noticias' || asset.file.toLowerCase().includes('noticia');
       let tagText = asset.type;
@@ -1158,8 +1954,6 @@
       // Noticias -> Con audio por defecto (false)
       // Audios -> Con audio por defecto (false)
       const defaultMute = (asset.type === 'video' && !isNoticia);
-      const currentMute = customMutes[asset.id] !== undefined ? customMutes[asset.id] : defaultMute;
-
       let icon = '🎬';
       if (isNoticia) icon = '📰';
       else if (asset.type === 'audio') icon = '🎵';
@@ -1171,16 +1965,6 @@
         thumbnailHtml = `<img class="asset-thumbnail" src="${thumbUrl}" alt="${asset.name}" onerror="this.outerHTML='<div class=&quot;asset-icon-fallback&quot;>${icon}</div>';" />`;
       }
 
-      // Botón toggle de audio para videos
-      let audioBadgeHtml = '';
-      if (asset.type === 'video') {
-        audioBadgeHtml = `
-          <div class="audio-badge ${!currentMute ? 'unmuted' : ''}" title="Clic para alternar audio (silenciado o con sonido)">
-            ${currentMute ? '🔇 Silenc.' : '🔊 Audio'}
-          </div>
-        `;
-      }
-
       // Subtexto de carpeta si estamos en modo plano
       let folderSubtext = '';
       if (!showFolders && asset.folder && asset.folder !== 'general') {
@@ -1189,7 +1973,6 @@
 
       card.innerHTML = `
         <span class="asset-tag ${tagClass}">${tagText}</span>
-        ${audioBadgeHtml}
         <div class="asset-thumbnail-box">
           ${thumbnailHtml}
         </div>
@@ -1197,21 +1980,28 @@
         <div class="asset-name" title="${asset.name}">${asset.name}</div>
       `;
 
-      // Alternar silencio sin disparar video
-      const badge = card.querySelector('.audio-badge');
-      if (badge) {
-        badge.onclick = (e) => {
-          e.stopPropagation();
-          const newMute = !currentMute;
-          customMutes[asset.id] = newMute;
-          localStorage.setItem('trigger_custom_mutes', JSON.stringify(customMutes));
-          renderAssets();
-          log(`Audio de "${asset.name}" configurado como: ${newMute ? 'Silenciado 🔇' : 'Con sonido 🔊'}`, 'info');
-        };
+      if (asset.type === 'video') {
+        const optionsButton = document.createElement('button');
+        optionsButton.type = 'button';
+        optionsButton.className = 'video-options-trigger';
+        optionsButton.textContent = '⚙';
+        optionsButton.title = `Opciones avanzadas de ${asset.name}`;
+        optionsButton.setAttribute('aria-label', `Opciones avanzadas y compresión de ${asset.name}`);
+        optionsButton.addEventListener('click', event => {
+          event.preventDefault();
+          event.stopPropagation();
+          openVideoOptions(asset);
+        });
+        card.appendChild(optionsButton);
       }
 
       card.onclick = () => {
-        triggerAsset(asset, currentMute);
+        if (card.classList.contains('playing') && (asset.type === 'video' || asset.type === 'audio')) {
+          toggleActivePlayback();
+          return;
+        }
+        const muteAtPlayback = customMutes[asset.id] !== undefined ? customMutes[asset.id] : defaultMute;
+        triggerAsset(asset, muteAtPlayback);
       };
 
       return card;
@@ -1457,7 +2247,7 @@
       };
 
       ws.send(JSON.stringify(payload));
-      log(`Disparando: "${asset.name}" (${asset.type})${muteValue ? ' [Silenciado 🔇]' : ' [Con audio 🔊]'}`, 'info');
+      log(`Cerrando el contenido anterior y abriendo: "${asset.name}" (${asset.type})${muteValue ? ' [Silenciado 🔇]' : ' [Con audio 🔊]'}`, 'info');
     }
 
     // Buscador en tiempo real
@@ -1501,7 +2291,7 @@
         duration: durationVal,
         mute: defaultMute
       }));
-      log(`Comando manual: "${filename}" (${mediaType})`, 'info');
+      log(`Comando manual: se cerrará el medio anterior antes de abrir "${filename}" (${mediaType})`, 'info');
     };
 
     // Parar todo (Stop de emergencia)
@@ -1525,11 +2315,12 @@
       log('🚨 Parada de emergencia ejecutada: Se detuvo toda reproducción (la fuente en OBS se mantiene activa).', 'warning');
     };
 
-    // Actualizar catálogo
-    document.getElementById('btn-refresh').onclick = () => {
-      loadAssets();
+    // Actualizar catálogo; el compresor usa esta misma acción al terminar.
+    async function refreshAssetCatalog() {
       log('Actualizando catálogo de archivos...', 'info');
-    };
+      await loadAssets();
+    }
+    document.getElementById('btn-refresh').onclick = refreshAssetCatalog;
 
     // Modal de Configuración de Servidor
     const serverModal = document.getElementById('server-modal');
@@ -1558,8 +2349,56 @@
       loadAssets();
     };
 
+    playbackDockToggle.onclick = toggleActivePlayback;
+
+    playbackDockMute.onclick = () => {
+      if (!activePlayback?.sourceName || !ws || ws.readyState !== WebSocket.OPEN) return;
+      const muted = !activePlayback.mute;
+      setPlaybackMute(muted, true);
+      ws.send(JSON.stringify({ action: 'mute', sourceName: activePlayback.sourceName, mute: muted }));
+      log(`Audio de "${playbackDockTitle.textContent}" configurado como: ${muted ? 'Silenciado 🔇' : 'Con sonido 🔊'}`, 'info');
+    };
+
+    playbackDockVolume.oninput = () => {
+      const volume = Number(playbackDockVolume.value);
+      if (activePlayback) activePlayback.volume = volume;
+      playbackDockVolumeValue.textContent = `${volume}%`;
+    };
+
+    playbackDockVolume.onchange = () => {
+      if (!activePlayback?.sourceName || !ws || ws.readyState !== WebSocket.OPEN) return;
+      ws.send(JSON.stringify({
+        action: 'volume',
+        sourceName: activePlayback.sourceName,
+        volume: Number(playbackDockVolume.value)
+      }));
+    };
+
+    playbackDockSeek.onpointerdown = () => {
+      playbackDockSeek.dataset.dragging = 'true';
+    };
+
+    playbackDockSeek.oninput = () => {
+      if (!activePlayback || !activePlayback.duration) return;
+      const currentTime = activePlayback.duration * Number(playbackDockSeek.value) / 1000;
+      playbackDockCurrent.textContent = formatMediaTime(currentTime);
+      activePlayback.currentTime = currentTime;
+    };
+
+    playbackDockSeek.onchange = () => {
+      delete playbackDockSeek.dataset.dragging;
+      if (!activePlayback?.sourceName || !activePlayback.duration || !ws || ws.readyState !== WebSocket.OPEN) return;
+      ws.send(JSON.stringify({
+        action: 'seek',
+        sourceName: activePlayback.sourceName,
+        currentTime: activePlayback.duration * Number(playbackDockSeek.value) / 1000
+      }));
+    };
+
     // Inicializar
     updateFolderButtonState();
+    applyGalleryPreferences();
+    updateMediaFolderPath();
     connectWS();
     loadAssets();
   </script>

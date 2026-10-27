@@ -1,5 +1,7 @@
 # Sistema de Control Remoto para OBS Studio (PC1 + PC2)
 
+> Documento de planificación inicial. Describe ideas de diseño, no necesariamente el comportamiento implementado. Consulta [`docs/ARQUITECTURA_Y_DESARROLLO.md`](docs/ARQUITECTURA_Y_DESARROLLO.md) para la implementación actual.
+
 ## Objetivo del Proyecto
 
 Crear una aplicación nativa para Windows que permita controlar OBS Studio remotamente desde otra computadora dentro de la misma red local.

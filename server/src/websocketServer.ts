@@ -5,7 +5,7 @@ import fs from 'fs';
 import { OBSController } from './obsController';
 
 interface ClientMessage {
-  action: 'play' | 'stop' | 'hide' | 'status' | 'ended';
+  action: 'play' | 'stop' | 'hide' | 'status' | 'ended' | 'volume' | 'mute' | 'playback' | 'seek' | 'progress';
   video?: string;      // Simple format
   asset?: string;      // Structured format
   type?: 'video' | 'image' | 'audio';
@@ -14,6 +14,10 @@ interface ClientMessage {
   sceneName?: string;
   sourceName?: string;
   mute?: boolean;
+  volume?: number;
+  playback?: 'play' | 'pause';
+  currentTime?: number;
+  paused?: boolean;
 }
 
 export class TriggerWebSocketServer {
@@ -21,7 +25,9 @@ export class TriggerWebSocketServer {
   private obsController: OBSController;
   private mediaPath: string;
   private activeTimeouts: Map<string, NodeJS.Timeout> = new Map();
-  private activeAssets: Map<string, { asset: string; type: 'video' | 'image' | 'audio'; startedAt: number; category?: string; mute?: boolean }> = new Map();
+  private playbackQueue: Promise<void> = Promise.resolve();
+  private browserSourceVolumes: Map<string, number> = new Map();
+  private activeAssets: Map<string, { asset: string; type: 'video' | 'image' | 'audio'; startedAt: number; category?: string; mute?: boolean; volume?: number; inputKind?: string; currentTime?: number; duration?: number; paused?: boolean }> = new Map();
 
   constructor(server: Server, obsController: OBSController, mediaPath: string) {
     this.obsController = obsController;
@@ -37,8 +43,14 @@ export class TriggerWebSocketServer {
       ws.on('message', async (message: string) => {
         try {
           const data: ClientMessage = JSON.parse(message);
-          console.log('[WS] Received message:', data);
-          await this.handleMessage(ws, data);
+          if (data.action !== 'progress') console.log('[WS] Received message:', data);
+          if (data.action === 'play' || data.action === 'stop' || data.action === 'hide') {
+            const queuedPlay = this.playbackQueue.then(() => this.handleMessage(ws, data));
+            this.playbackQueue = queuedPlay.catch(() => undefined);
+            await queuedPlay;
+          } else {
+            await this.handleMessage(ws, data);
+          }
         } catch (error) {
           console.error('[WS] Error parsing message:', error);
           ws.send(JSON.stringify({ type: 'error', message: 'Invalid JSON format' }));
@@ -53,12 +65,14 @@ export class TriggerWebSocketServer {
     // Register media playback ended event from OBS to automatically finish/clear any media
     this.obsController.onMediaEnded(async (inputName: string) => {
       console.log(`[OBS Event] Media playback ended on source: "${inputName}". Auto-stopping to continue stream...`);
-      
+      const endedAsset = this.activeAssets.get(inputName);
+      if (!endedAsset) return;
+
       const activeScene = await this.obsController.getCurrentSceneName();
       const sceneName = process.env.OBS_SCENE || activeScene;
       
       this.activeAssets.delete(inputName);
-      this.broadcastMediaStatus(sceneName, inputName, 'hidden');
+      this.broadcastMediaStatus(sceneName, inputName, 'hidden', endedAsset.asset);
       
       // Clear any active auto-hide timeouts for this source if they exist
       const timeoutKey = `${sceneName}:${inputName}`;
@@ -75,6 +89,13 @@ export class TriggerWebSocketServer {
     setInterval(() => {
       this.broadcastStatus();
     }, 5000);
+    setInterval(() => {
+      void this.broadcastPlaybackProgress();
+    }, 750);
+  }
+
+  public setMediaPath(mediaPath: string) {
+    this.mediaPath = mediaPath;
   }
 
   private sendConnectionStatus(ws: WebSocket) {
@@ -112,8 +133,6 @@ export class TriggerWebSocketServer {
   }
 
   private async handleMessage(ws: WebSocket, msg: ClientMessage) {
-    const activeScene = await this.obsController.getCurrentSceneName();
-    const sceneName = msg.sceneName || process.env.OBS_SCENE || activeScene;
     const defaultVideoSource = process.env.OBS_SOURCE_VIDEO || 'Overlay_Main';
     const defaultImageSource = process.env.OBS_SOURCE_IMAGE || 'GIF_Overlay';
     const defaultAudioSource = process.env.OBS_SOURCE_AUDIO || 'Sound_Effect';
@@ -123,12 +142,132 @@ export class TriggerWebSocketServer {
       return;
     }
 
+    if (msg.action === 'progress') {
+      const sourceName = msg.sourceName;
+      const activeAsset = sourceName ? this.activeAssets.get(sourceName) : undefined;
+      if (!sourceName || !activeAsset || (activeAsset.type !== 'video' && activeAsset.type !== 'audio')) return;
+      if (msg.asset && msg.asset !== activeAsset.asset) return;
+      const currentTime = Number(msg.currentTime);
+      const duration = Number(msg.duration);
+      if (!Number.isFinite(currentTime) || currentTime < 0) return;
+      activeAsset.currentTime = currentTime;
+      activeAsset.duration = Number.isFinite(duration) && duration > 0 ? duration : 0;
+      activeAsset.paused = !!msg.paused;
+      this.sendPlayerProgress(sourceName, activeAsset.asset, activeAsset.currentTime, activeAsset.duration, activeAsset.paused);
+      return;
+    }
+
+    const activeScene = await this.obsController.getCurrentSceneName();
+    const sceneName = msg.sceneName || process.env.OBS_SCENE || activeScene;
+
     if (msg.action === 'ended') {
       const sourceName = msg.sourceName || defaultVideoSource;
       console.log(`[WS] Client reported media ended on source: ${sourceName}`);
-      if (this.activeAssets.has(sourceName)) {
+      const endedAsset = this.activeAssets.get(sourceName);
+      if (endedAsset) {
         this.activeAssets.delete(sourceName);
-        this.broadcastMediaStatus(sceneName, sourceName, 'hidden');
+        this.broadcastMediaStatus(sceneName, sourceName, 'hidden', endedAsset.asset);
+      }
+      return;
+    }
+
+    if (msg.action === 'mute') {
+      const sourceName = msg.sourceName;
+      const activeAsset = sourceName ? this.activeAssets.get(sourceName) : undefined;
+      if (!sourceName || !activeAsset) {
+        ws.send(JSON.stringify({ type: 'error', message: 'No hay un medio activo para cambiar el silencio.' }));
+        return;
+      }
+      const muted = !!msg.mute;
+      try {
+        await this.obsController.setInputMute(sourceName, muted);
+        activeAsset.mute = muted;
+        this.broadcastPlayerControl({ action: 'mute', sourceName, muted });
+        this.broadcastPlayerState(sourceName, activeAsset);
+      } catch (error: any) {
+        ws.send(JSON.stringify({ type: 'error', message: `No se pudo cambiar el silencio: ${error.message || error}` }));
+      }
+      return;
+    }
+
+    if (msg.action === 'playback') {
+      const sourceName = msg.sourceName;
+      const activeAsset = sourceName ? this.activeAssets.get(sourceName) : undefined;
+      if (!sourceName || !activeAsset || (activeAsset.type !== 'video' && activeAsset.type !== 'audio')) {
+        ws.send(JSON.stringify({ type: 'error', message: 'No hay un video o audio activo para controlar.' }));
+        return;
+      }
+      if (msg.playback !== 'play' && msg.playback !== 'pause') {
+        ws.send(JSON.stringify({ type: 'error', message: 'Acción de reproducción no válida.' }));
+        return;
+      }
+      try {
+        const paused = msg.playback === 'pause';
+        this.broadcastPlayerControl({ action: msg.playback, sourceName });
+        if (activeAsset.inputKind && activeAsset.inputKind !== 'browser_source') {
+          await this.obsController.setMediaInputPlayback(sourceName, msg.playback);
+        }
+        activeAsset.paused = paused;
+        this.broadcastPlayerState(sourceName, activeAsset);
+      } catch (error: any) {
+        ws.send(JSON.stringify({ type: 'error', message: `No se pudo ${msg.playback === 'pause' ? 'pausar' : 'reanudar'} el medio: ${error.message || error}` }));
+      }
+      return;
+    }
+
+    if (msg.action === 'seek') {
+      const sourceName = msg.sourceName;
+      const activeAsset = sourceName ? this.activeAssets.get(sourceName) : undefined;
+      const position = Number(msg.currentTime);
+      if (!sourceName || !activeAsset || (activeAsset.type !== 'video' && activeAsset.type !== 'audio')) {
+        ws.send(JSON.stringify({ type: 'error', message: 'No hay un video o audio activo para adelantar o retroceder.' }));
+        return;
+      }
+      if (!Number.isFinite(position) || position < 0) {
+        ws.send(JSON.stringify({ type: 'error', message: 'La posición indicada no es válida.' }));
+        return;
+      }
+      try {
+        this.broadcastPlayerControl({ action: 'seek', sourceName, currentTime: position });
+        if (activeAsset.inputKind && activeAsset.inputKind !== 'browser_source') {
+          await this.obsController.seekMediaInput(sourceName, position);
+        }
+        activeAsset.currentTime = position;
+        this.broadcastPlayerProgress(sourceName, activeAsset);
+      } catch (error: any) {
+        ws.send(JSON.stringify({ type: 'error', message: `No se pudo cambiar la posición del medio: ${error.message || error}` }));
+      }
+      return;
+    }
+
+    if (msg.action === 'volume') {
+      const sourceName = msg.sourceName;
+      const activeAsset = sourceName ? this.activeAssets.get(sourceName) : undefined;
+      if (!sourceName || !activeAsset) {
+        ws.send(JSON.stringify({ type: 'error', message: 'No hay un medio activo para cambiar su volumen.' }));
+        return;
+      }
+      const volume = Number(msg.volume);
+      if (!Number.isFinite(volume) || volume < 0 || volume > 200) {
+        ws.send(JSON.stringify({ type: 'error', message: 'El volumen debe estar entre 0 y 200%.' }));
+        return;
+      }
+      try {
+        let appliedVolume = Math.round(volume);
+        if (activeAsset.inputKind === 'browser_source') {
+          // Browser Source audio may bypass OBS's mixer and be played directly by
+          // the overlay's HTML media element.
+          this.browserSourceVolumes.set(sourceName, appliedVolume);
+        } else {
+          await this.obsController.setInputVolume(sourceName, volume / 100);
+          appliedVolume = Math.round((await this.obsController.getInputVolume(sourceName)) * 100);
+        }
+        activeAsset.volume = appliedVolume;
+        console.log(`[OBS] Volume for "${sourceName}" set to ${appliedVolume}%`);
+        this.broadcastPlayerControl({ action: 'volume', sourceName, volume: appliedVolume });
+        this.broadcastVolume(sourceName, appliedVolume);
+      } catch (error: any) {
+        ws.send(JSON.stringify({ type: 'error', message: `No se pudo cambiar el volumen: ${error.message || error}` }));
       }
       return;
     }
@@ -201,7 +340,26 @@ export class TriggerWebSocketServer {
         return;
       }
 
-      // Cancel existing auto-hide timeouts for this source if any
+      // Keep one item playing at a time, including across different OBS sources.
+      for (const timeout of this.activeTimeouts.values()) clearTimeout(timeout);
+      this.activeTimeouts.clear();
+      const previousAssets = Array.from(this.activeAssets.entries());
+      this.activeAssets.clear();
+      for (const [previousSource, previousAsset] of previousAssets) {
+        if (previousAsset.inputKind === 'image_source') {
+          await this.obsController.hideAsset(sceneName, previousSource, true);
+        } else {
+          await this.obsController.stopAsset(previousSource);
+        }
+        this.broadcastMediaStatus(sceneName, previousSource, 'hidden', previousAsset.asset);
+      }
+      for (const configuredSource of new Set([defaultVideoSource, defaultImageSource, defaultAudioSource])) {
+        await this.obsController.stopAsset(configuredSource);
+      }
+      // Close the old overlay item before the next media_state:playing arrives.
+      this.broadcastAllAssetsStopped('replace');
+
+      // Cancel any lingering timeout for this source.
       const timeoutKey = `${sceneName}:${sourceName}`;
       if (this.activeTimeouts.has(timeoutKey)) {
         clearTimeout(this.activeTimeouts.get(timeoutKey)!);
@@ -231,16 +389,31 @@ export class TriggerWebSocketServer {
         }
 
         // Track active asset
+        let currentVolume = result.inputKind === 'browser_source'
+          ? (this.browserSourceVolumes.get(sourceName) ?? 100)
+          : 100;
+        if (result.inputKind !== 'browser_source') {
+          try {
+            currentVolume = Math.round((await this.obsController.getInputVolume(sourceName)) * 100);
+          } catch (error: any) {
+            console.warn(`[OBS] Could not read volume for "${sourceName}":`, error.message || error);
+          }
+        }
         this.activeAssets.set(sourceName, {
           asset: fileName,
           type: isAudio ? 'audio' : (isVideo ? 'video' : 'image'),
           category: msg.category,
           startedAt: Date.now(),
-          mute: mute
+          mute: mute,
+          volume: currentVolume,
+          inputKind: result.inputKind,
+          currentTime: 0,
+          duration: 0,
+          paused: false
         });
 
         // Broadcast that it is playing
-        this.broadcastMediaStatus(sceneName, sourceName, 'playing', fileName, msg.category, mute);
+        this.broadcastMediaStatus(sceneName, sourceName, 'playing', fileName, msg.category, mute, currentVolume);
 
         // Handle auto-finish / timeout:
         // - Static images: 3s if duration is 0
@@ -256,12 +429,14 @@ export class TriggerWebSocketServer {
         }
 
         if (effectiveDuration > 0) {
+          const playbackStartedAt = this.activeAssets.get(sourceName)?.startedAt;
           const timeout = setTimeout(async () => {
+            if (this.activeAssets.get(sourceName)?.startedAt !== playbackStartedAt) return;
             console.log(`[Auto-Finish] Duration reached (${effectiveDuration}s) for "${fileName}". Auto-stopping...`);
-            await this.obsController.stopAsset(sourceName);
             this.activeTimeouts.delete(timeoutKey);
             this.activeAssets.delete(sourceName);
-            this.broadcastMediaStatus(sceneName, sourceName, 'hidden');
+            await this.obsController.stopAsset(sourceName);
+            this.broadcastMediaStatus(sceneName, sourceName, 'hidden', fileName);
           }, effectiveDuration * 1000);
           
           this.activeTimeouts.set(timeoutKey, timeout);
@@ -281,19 +456,23 @@ export class TriggerWebSocketServer {
 
       const sourceName = msg.sourceName;
       if (sourceName) {
-        await this.obsController.stopAsset(sourceName);
+        const stoppedAsset = this.activeAssets.get(sourceName);
         this.activeAssets.delete(sourceName);
-        this.broadcastMediaStatus(sceneName, sourceName, 'hidden');
+        await this.obsController.stopAsset(sourceName);
+        this.broadcastMediaStatus(sceneName, sourceName, 'hidden', stoppedAsset?.asset);
       } else {
         // Emergency stop: stop all media in the scene without disabling any source
+        const stoppedAssets = Array.from(this.activeAssets.entries());
+        this.activeAssets.clear();
         await this.obsController.stopAllAssets(sceneName);
         
         // Also stop default configured sources
         await this.obsController.stopAsset(defaultVideoSource);
         await this.obsController.stopAsset(defaultImageSource);
         
-        this.activeAssets.clear();
-
+        for (const [activeSource, activeAsset] of stoppedAssets) {
+          this.broadcastMediaStatus(sceneName, activeSource, 'hidden', activeAsset.asset);
+        }
         this.broadcastMediaStatus(sceneName, defaultVideoSource, 'hidden');
         this.broadcastMediaStatus(sceneName, defaultImageSource, 'hidden');
 
@@ -305,9 +484,10 @@ export class TriggerWebSocketServer {
     }
   }
 
-  private broadcastAllAssetsStopped() {
+  private broadcastAllAssetsStopped(reason: 'replace' | 'stop' = 'stop') {
     const msg = JSON.stringify({
-      type: 'all_stopped'
+      type: 'all_stopped',
+      reason
     });
     this.wss.clients.forEach((client) => {
       if (client.readyState === WebSocket.OPEN) {
@@ -316,15 +496,80 @@ export class TriggerWebSocketServer {
     });
   }
 
-  private broadcastMediaStatus(sceneName: string, sourceName: string, state: 'playing' | 'hidden', assetName?: string, category?: string, mute?: boolean) {
+  private broadcastVolume(sourceName: string, volume: number) {
+    const msg = JSON.stringify({ type: 'volume', sourceName, volume });
+    this.wss.clients.forEach((client) => {
+      if (client.readyState === WebSocket.OPEN) client.send(msg);
+    });
+  }
+
+  private broadcastPlayerControl(control: { action: 'play' | 'pause' | 'seek' | 'mute' | 'volume'; sourceName: string; currentTime?: number; muted?: boolean; volume?: number }) {
+    const message = JSON.stringify({ type: 'player_control', ...control });
+    this.wss.clients.forEach((client) => {
+      if (client.readyState === WebSocket.OPEN) client.send(message);
+    });
+  }
+
+  private broadcastPlaybackProgress() {
+    this.activeAssets.forEach((activeAsset, sourceName) => {
+      if (activeAsset.inputKind && activeAsset.inputKind !== 'browser_source') {
+        this.broadcastPlayerProgress(sourceName, activeAsset);
+      }
+    });
+  }
+
+  private broadcastPlayerState(sourceName: string, activeAsset: { asset: string; mute?: boolean; paused?: boolean; currentTime?: number; duration?: number }) {
+    const message = JSON.stringify({
+      type: 'player_state',
+      sourceName,
+      assetName: activeAsset.asset,
+      mute: activeAsset.mute,
+      paused: activeAsset.paused,
+      currentTime: activeAsset.currentTime || 0,
+      duration: activeAsset.duration || 0
+    });
+    this.wss.clients.forEach((client) => {
+      if (client.readyState === WebSocket.OPEN) client.send(message);
+    });
+  }
+
+  private broadcastPlayerProgress(sourceName: string, activeAsset: { asset: string; type: 'video' | 'image' | 'audio'; inputKind?: string; currentTime?: number; duration?: number; paused?: boolean }) {
+    if (activeAsset.type !== 'video' && activeAsset.type !== 'audio') return;
+    if (activeAsset.inputKind && activeAsset.inputKind !== 'browser_source') {
+      void this.obsController.getMediaInputStatus(sourceName).then((status) => {
+        const currentTime = Math.max(0, (Number(status.mediaCursor) || 0) / 1000);
+        const duration = Math.max(0, (Number(status.mediaDuration) || 0) / 1000);
+        if (duration <= 0) return;
+        const paused = status.mediaState === 'OBS_MEDIA_STATE_PAUSED';
+        activeAsset.currentTime = currentTime;
+        activeAsset.duration = duration;
+        activeAsset.paused = paused;
+        this.sendPlayerProgress(sourceName, activeAsset.asset, currentTime, duration, paused);
+      }).catch(() => undefined);
+      return;
+    }
+    this.sendPlayerProgress(sourceName, activeAsset.asset, activeAsset.currentTime || 0, activeAsset.duration || 0, !!activeAsset.paused);
+  }
+
+  private sendPlayerProgress(sourceName: string, assetName: string, currentTime: number, duration: number, paused: boolean) {
+    const message = JSON.stringify({ type: 'player_progress', sourceName, assetName, currentTime, duration, paused });
+    this.wss.clients.forEach((client) => {
+      if (client.readyState === WebSocket.OPEN) client.send(message);
+    });
+  }
+
+  private broadcastMediaStatus(sceneName: string, sourceName: string, state: 'playing' | 'hidden', assetName?: string, category?: string, mute?: boolean, volume?: number) {
     const msg = JSON.stringify({
       type: 'media_state',
       sceneName,
       sourceName,
       state,
       assetName,
+      assetType: this.activeAssets.get(sourceName)?.type,
+      inputKind: this.activeAssets.get(sourceName)?.inputKind,
       category,
-      mute
+      mute,
+      volume
     });
     this.wss.clients.forEach((client) => {
       if (client.readyState === WebSocket.OPEN) {

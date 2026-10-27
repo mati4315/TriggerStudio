@@ -1,5 +1,7 @@
 # Guía de Configuración: Trigger Studio con 2 PCs (Opción 2)
 
+> **Referencia histórica:** las direcciones IP que aparecen en esta guía son ejemplos anteriores y pueden no coincidir con tu red actual. Para la arquitectura vigente, Tailscale/LAN, ejecución, protocolo y seguridad, consulta [`docs/ARQUITECTURA_Y_DESARROLLO.md`](docs/ARQUITECTURA_Y_DESARROLLO.md). No copies IPs ni contraseñas de ejemplos sin verificarlas en tus equipos.
+
 Esta guía explica paso a paso cómo usar **Trigger Studio** teniendo el servidor y los archivos multimedia en tu PC actual, y **OBS Studio** corriendo en otra PC dentro de la misma red local.
 
 ---
