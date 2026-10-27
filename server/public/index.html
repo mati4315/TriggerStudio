@@ -667,7 +667,15 @@
     }
 
     .asset-card.video-card .asset-tag { top: 42px; right: auto; left: 8px; }
-    .asset-card.video-card.playing::after { right: auto; left: 8px; }
+    .asset-card.video-card.playing::after { right: 42px; left: auto; }
+    .asset-favorite-trigger {
+      position: absolute; top: 7px; left: 7px; z-index: 4; display: grid; place-items: center;
+      width: 28px; height: 28px; border: 1px solid rgba(255,255,255,0.2); border-radius: 8px;
+      background: rgba(8,10,18,0.82); color: #e2e8f0; font-size: 20px; line-height: 1; cursor: pointer;
+      transition: background 0.18s ease, border-color 0.18s ease, transform 0.18s ease, color 0.18s ease;
+    }
+    .asset-favorite-trigger:hover, .asset-favorite-trigger:focus-visible { background: rgba(234,179,8,0.18); border-color: #facc15; color: #fde047; transform: scale(1.08); outline: none; }
+    .asset-favorite-trigger.is-favorite { border-color: rgba(250,204,21,0.55); background: rgba(234,179,8,0.16); color: #fde047; }
     .video-options-trigger {
       position: absolute; top: 7px; right: 7px; z-index: 4; display: grid; place-items: center;
       width: 28px; height: 28px; border: 1px solid rgba(255,255,255,0.2); border-radius: 8px;
@@ -1105,6 +1113,7 @@
             <button class="pill" data-category="noticia">Noticias</button>
             <button class="pill" data-category="audio">Audios</button>
             <button class="pill" data-category="image">GIFs / Fotos</button>
+            <button class="pill" data-category="favorites">⭐ Favoritos</button>
           </div>
         </div>
       </div>
@@ -1351,6 +1360,43 @@
     }
     let showFolders = localStorage.getItem('trigger_show_folders') !== 'false';
     let customMutes = JSON.parse(localStorage.getItem('trigger_custom_mutes') || '{}');
+    const favoritesStorageKey = 'trigger_favorite_assets_v1';
+    function loadFavoriteAssetIds() {
+      try {
+        const saved = JSON.parse(localStorage.getItem(favoritesStorageKey) || '[]');
+        return new Set(Array.isArray(saved) ? saved.filter(id => typeof id === 'string') : []);
+      } catch { return new Set(); }
+    }
+    const favoriteAssetIds = loadFavoriteAssetIds();
+
+    function updateFavoriteButton(button, asset) {
+      const isFavorite = favoriteAssetIds.has(asset.id);
+      button.textContent = isFavorite ? '★' : '☆';
+      button.title = isFavorite ? 'Quitar de favoritos' : 'Agregar a favoritos';
+      button.setAttribute('aria-label', `${button.title}: ${asset.name}`);
+      button.setAttribute('aria-pressed', String(isFavorite));
+      button.classList.toggle('is-favorite', isFavorite);
+    }
+
+    function updateFavoriteShortcuts(asset) {
+      document.querySelectorAll('.asset-card').forEach(card => {
+        if (card.dataset.assetId !== asset.id) return;
+        const button = card.querySelector('.asset-favorite-trigger');
+        if (button) updateFavoriteButton(button, asset);
+      });
+    }
+
+    function toggleAssetFavorite(asset) {
+      if (favoriteAssetIds.has(asset.id)) favoriteAssetIds.delete(asset.id);
+      else favoriteAssetIds.add(asset.id);
+      try {
+        localStorage.setItem(favoritesStorageKey, JSON.stringify(Array.from(favoriteAssetIds)));
+      } catch {
+        log('No se pudo guardar favoritos en este navegador.', 'warning');
+      }
+      updateFavoriteShortcuts(asset);
+      if (currentCategoryFilter === 'favorites') renderAssets();
+    }
 
     function getDefaultMuteForAsset(asset) {
       if (customMutes[asset.id] !== undefined) return !!customMutes[asset.id];
@@ -2047,6 +2093,17 @@
         <div class="asset-name" title="${asset.name}">${asset.name}</div>
       `;
 
+      const favoriteButton = document.createElement('button');
+      favoriteButton.type = 'button';
+      favoriteButton.className = 'asset-favorite-trigger';
+      favoriteButton.addEventListener('click', event => {
+        event.preventDefault();
+        event.stopPropagation();
+        toggleAssetFavorite(asset);
+      });
+      card.appendChild(favoriteButton);
+      updateFavoriteButton(favoriteButton, asset);
+
       if (asset.type === 'video') {
         const optionsButton = document.createElement('button');
         optionsButton.type = 'button';
@@ -2184,6 +2241,7 @@
       // Filtrado por categoría y búsqueda
       let baseFiltered = allAssets.filter(asset => {
         const isNoticia = asset.category === 'Noticias' || asset.file.toLowerCase().includes('noticia');
+        if (currentCategoryFilter === 'favorites' && !favoriteAssetIds.has(asset.id)) return false;
         if (currentCategoryFilter === 'video' && (asset.type !== 'video' || isNoticia)) return false;
         if (currentCategoryFilter === 'noticia' && !isNoticia) return false;
         if (currentCategoryFilter === 'audio' && asset.type !== 'audio') return false;
@@ -2191,10 +2249,11 @@
         return true;
       });
 
-      // Si el usuario está buscando texto en el buscador, mostramos directamente todos los resultados coincidentes
-      if (searchQuery) {
+      // Búsquedas y favoritos muestran archivos directamente, sin agruparlos en carpetas.
+      if (searchQuery || currentCategoryFilter === 'favorites') {
         const q = searchQuery.toLowerCase();
         const searchMatches = baseFiltered.filter(asset => {
+          if (!q) return true;
           const matchName = asset.name.toLowerCase().includes(q);
           const matchFile = asset.file.toLowerCase().includes(q);
           const matchFolder = (asset.folder || '').toLowerCase().includes(q);
@@ -2202,11 +2261,17 @@
         });
 
         if (searchMatches.length === 0) {
+          const emptyTitle = currentCategoryFilter === 'favorites'
+            ? searchQuery ? `No hay favoritos que coincidan con "${searchQuery}"` : 'Todavía no tienes favoritos'
+            : `No se encontraron archivos con "${searchQuery}"`;
+          const emptyHint = currentCategoryFilter === 'favorites'
+            ? 'Pulsa la estrella de cualquier video, foto o audio para guardarlo aquí.'
+            : 'Prueba buscando otra palabra.';
           assetsGrid.innerHTML = `
             <div class="empty-state">
-              <div class="empty-state-icon">🔍</div>
-              <div class="empty-state-title">No se encontraron archivos con "${searchQuery}"</div>
-              <div style="font-size: 0.9rem;">Prueba buscando otra palabra.</div>
+              <div class="empty-state-icon">${currentCategoryFilter === 'favorites' ? '⭐' : '🔍'}</div>
+              <div class="empty-state-title">${emptyTitle}</div>
+              <div style="font-size: 0.9rem;">${emptyHint}</div>
             </div>
           `;
           return;
