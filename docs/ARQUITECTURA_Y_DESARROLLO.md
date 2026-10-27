@@ -118,7 +118,7 @@ La clasificación de la biblioteca está en `assetScanner.ts`. Extensiones de vi
 6. Se emiten mensajes de estado para que panel y overlay actualicen la tarjeta, el dock de reproducción y el contenido visible.
 7. OBS o el overlay informa que terminó. El backend limpia el estado y cualquier auto-stop asociado.
 
-Los videos normales empiezan silenciados por defecto; noticias y audios empiezan con sonido. El panel puede guardar una preferencia de mute por asset en el almacenamiento local del navegador. El volumen del dock está entre `0` y `200%`: fuentes nativas ajustan el input de OBS; en Browser Source se manda al reproductor del overlay (con Web Audio para amplificar por encima de 100%). Mute y reproducción también se propagan al overlay.
+Los videos normales empiezan silenciados por defecto; noticias y audios empiezan con sonido. En las opciones avanzadas de cada video se puede cambiar si ese video empieza en silencio; la preferencia se guarda por asset en el almacenamiento local del navegador y se aplica al instante si el video ya está reproduciéndose. El mute del dock también actualiza esa preferencia. El volumen del dock está entre `0` y `200%`: fuentes nativas ajustan el input de OBS; en Browser Source se manda al reproductor del overlay (con Web Audio para amplificar por encima de 100%). Mute y reproducción también se propagan al overlay.
 
 El dock inferior permite play/pausa, mute, volumen y seek. Su altura de escritorio es compacta (56 px); en móvil puede ocupar dos filas. Pulsar la tarjeta del video/audio que ya está activo alterna pausa/reproducción. El seek se envía al soltar el control. El overlay informa progreso desde el reproductor HTML; además, para inputs nativos el backend consulta el estado del input de OBS periódicamente.
 

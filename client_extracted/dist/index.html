@@ -1160,6 +1160,12 @@
         <button class="video-options-close" id="video-options-close" type="button" aria-label="Cerrar opciones">✕</button>
       </div>
       <div class="video-options-filename" id="video-options-filename"></div>
+      <div class="video-compression-options" aria-label="Preferencia de sonido">
+        <label class="video-compression-option">
+          <input type="checkbox" id="video-default-muted">
+          <span><strong>Reproducir este video en silencio por defecto</strong><small>Desmárcalo para iniciar con sonido. Se guarda para este video y también cambia el mute si ya está reproduciéndose.</small></span>
+        </label>
+      </div>
       <div class="video-info-grid" aria-live="polite">
         <div class="video-info-card"><span>Video original</span><strong id="video-original-size">Leyendo tamaño…</strong><small id="video-original-resolution">Consultando resolución…</small></div>
         <div class="video-info-card"><span id="video-output-label">Resultado previsto</span><strong id="video-output-size">Se mostrará al terminar</strong><small id="video-output-resolution">Leyendo resolución…</small></div>
@@ -1236,6 +1242,7 @@
     const gallerySettingHeaderSizeValue = document.getElementById('gallery-setting-header-size-value');
     const videoOptionsDialog = document.getElementById('video-options-dialog');
     const videoOptionsFilename = document.getElementById('video-options-filename');
+    const videoDefaultMuted = document.getElementById('video-default-muted');
     const videoCompressionStatus = document.getElementById('video-compression-status');
     const videoOptionsClose = document.getElementById('video-options-close');
     const videoOptionsCancel = document.getElementById('video-options-cancel');
@@ -1336,6 +1343,30 @@
     let showFolders = localStorage.getItem('trigger_show_folders') !== 'false';
     let customMutes = JSON.parse(localStorage.getItem('trigger_custom_mutes') || '{}');
 
+    function getDefaultMuteForAsset(asset) {
+      if (customMutes[asset.id] !== undefined) return !!customMutes[asset.id];
+      const isNoticia = asset.category === 'Noticias' || asset.file.toLowerCase().includes('noticia');
+      return asset.type === 'video' && !isNoticia;
+    }
+
+    function saveVideoMutePreference() {
+      if (!selectedVideoAsset) return;
+      const asset = selectedVideoAsset;
+      const muted = videoDefaultMuted.checked;
+      customMutes[asset.id] = muted;
+      localStorage.setItem('trigger_custom_mutes', JSON.stringify(customMutes));
+
+      if (activePlayback?.assetFile !== asset.file) return;
+      if (!activePlayback.sourceName || !ws || ws.readyState !== WebSocket.OPEN) {
+        log('La preferencia quedó guardada; el mute se aplicará en la próxima reproducción porque no hay conexión activa.', 'warning');
+        return;
+      }
+
+      setPlaybackMute(muted);
+      ws.send(JSON.stringify({ action: 'mute', sourceName: activePlayback.sourceName, mute: muted }));
+      log(`Mute de "${asset.name}" actualizado en la reproducción activa y guardado como preferencia.`, 'success');
+    }
+
     function updateFolderButtonState() {
       if (showFolders) {
         btnToggleFolders.classList.add('active');
@@ -1404,6 +1435,7 @@
       selectedVideoAsset = asset;
       selectedVideoResolution = null;
       videoOptionsFilename.textContent = asset.name || asset.file;
+      videoDefaultMuted.checked = getDefaultMuteForAsset(asset);
       document.querySelector('input[name="video-compression-mode"][value="keep"]').checked = true;
       videoOriginalSize.textContent = asset.sizeBytes ? formatFileSize(asset.sizeBytes) : 'No disponible';
       videoOriginalResolution.textContent = 'Consultando resolución…';
@@ -1614,6 +1646,7 @@
 
     videoCompressStart.onclick = compressSelectedVideo;
     videoAnalyzeButton.onclick = analyzeSelectedVideo;
+    videoDefaultMuted.addEventListener('change', saveVideoMutePreference);
     document.querySelectorAll('input[name="video-compression-mode"]').forEach(input => input.addEventListener('change', updateVideoResolutionPreview));
     videoOptionsCancel.onclick = () => { if (!videoCompressionBusy && !videoAnalysisBusy) videoOptionsDialog.close(); };
     videoOptionsClose.onclick = () => { if (!videoCompressionBusy && !videoAnalysisBusy) videoOptionsDialog.close(); };
@@ -1953,7 +1986,7 @@
       // Videos normales -> Silenciados por defecto (true)
       // Noticias -> Con audio por defecto (false)
       // Audios -> Con audio por defecto (false)
-      const defaultMute = (asset.type === 'video' && !isNoticia);
+      const defaultMute = getDefaultMuteForAsset(asset);
       let icon = '🎬';
       if (isNoticia) icon = '📰';
       else if (asset.type === 'audio') icon = '🎵';
@@ -1986,7 +2019,7 @@
         optionsButton.className = 'video-options-trigger';
         optionsButton.textContent = '⚙';
         optionsButton.title = `Opciones avanzadas de ${asset.name}`;
-        optionsButton.setAttribute('aria-label', `Opciones avanzadas y compresión de ${asset.name}`);
+        optionsButton.setAttribute('aria-label', `Opciones avanzadas, sonido y compresión de ${asset.name}`);
         optionsButton.addEventListener('click', event => {
           event.preventDefault();
           event.stopPropagation();
@@ -2000,8 +2033,7 @@
           toggleActivePlayback();
           return;
         }
-        const muteAtPlayback = customMutes[asset.id] !== undefined ? customMutes[asset.id] : defaultMute;
-        triggerAsset(asset, muteAtPlayback);
+        triggerAsset(asset, defaultMute);
       };
 
       return card;
