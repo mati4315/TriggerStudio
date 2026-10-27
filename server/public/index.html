@@ -112,12 +112,18 @@
     .main-container.sidebar-collapsed .sidebar-content { display: none; }
     .main-container.sidebar-collapsed .sidebar-toggle { right: 7px; border-radius: 10px; }
     .main-container.sidebar-collapsed .sidebar-emergency-slot:not([hidden]) {
-      position: absolute; top: 10px; left: 50%; display: flex; transform: translateX(-50%);
+      position: fixed; top: 50%; left: 12px; z-index: 1100; display: flex; align-items: center; gap: 7px;
+      transform: translateY(-50%);
     }
     .sidebar-emergency-slot #btn-stop-all { width: 40px; height: 42px; padding: 0; border-radius: 12px; font-size: 0; }
     .sidebar-emergency-slot #btn-stop-all::before { content: '🛑'; font-size: 18px; }
     .sidebar-emergency-slot #btn-stop-all.stopping::before { content: '⌛'; }
     .sidebar-emergency-slot #btn-stop-all.stopped::before { content: '✅'; }
+    .sidebar-emergency-label {
+      padding: 6px 9px; border: 1px solid rgba(248,113,113,0.42); border-radius: 9px;
+      background: rgba(18,20,31,0.94); color: #fecaca; font-size: 0.7rem; font-weight: 900;
+      letter-spacing: 0.12em; box-shadow: 0 6px 18px rgba(0,0,0,0.32); backdrop-filter: blur(10px);
+    }
 
     @media (max-width: 860px) {
       .main-container {
@@ -1075,7 +1081,9 @@
        </div>
       </div>
       <button class="sidebar-toggle" id="sidebar-toggle" type="button" aria-expanded="true" aria-controls="sidebar-content" title="Ocultar menú lateral">‹</button>
-      <div class="sidebar-emergency-slot" id="sidebar-emergency-slot" hidden></div>
+      <div class="sidebar-emergency-slot" id="sidebar-emergency-slot" hidden>
+        <span class="sidebar-emergency-label" aria-hidden="true">STOP</span>
+      </div>
     </div>
 
     <!-- Contenido principal: Galería Multimedia con Explorador de Carpetas -->
@@ -1331,7 +1339,7 @@
       sidebarToggle.title = collapsed ? 'Mostrar menú lateral' : 'Ocultar menú lateral';
       sidebarToggle.setAttribute('aria-expanded', String(!collapsed));
       if (collapsed) {
-        sidebarEmergencySlot.appendChild(stopAllButton);
+        sidebarEmergencySlot.insertBefore(stopAllButton, sidebarEmergencySlot.firstChild);
         sidebarEmergencySlot.hidden = false;
       } else {
         sidebarStopHome.appendChild(stopAllButton);
