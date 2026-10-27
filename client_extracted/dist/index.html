@@ -666,7 +666,7 @@
       box-shadow: 0 2px 8px rgba(16, 185, 129, 0.5);
     }
 
-    .asset-card.video-card .asset-tag { top: 42px; right: 8px; }
+    .asset-card.video-card .asset-tag { top: 42px; right: auto; left: 8px; }
     .asset-card.video-card.playing::after { right: auto; left: 8px; }
     .video-options-trigger {
       position: absolute; top: 7px; right: 7px; z-index: 4; display: grid; place-items: center;
@@ -675,6 +675,15 @@
       transition: background 0.18s ease, border-color 0.18s ease, transform 0.18s ease;
     }
     .video-options-trigger:hover, .video-options-trigger:focus-visible { background: var(--primary); border-color: #a5b4fc; transform: rotate(25deg); outline: none; }
+    .video-mute-trigger {
+      position: absolute; top: 39px; right: 7px; z-index: 4; display: grid; place-items: center;
+      width: 28px; height: 28px; border: 1px solid rgba(255,255,255,0.2); border-radius: 8px;
+      background: rgba(8,10,18,0.82); color: #a7f3d0; font-size: 14px; cursor: pointer;
+      transition: background 0.18s ease, border-color 0.18s ease, transform 0.18s ease;
+    }
+    .video-mute-trigger:hover, .video-mute-trigger:focus-visible { background: rgba(16,185,129,0.2); border-color: #34d399; transform: scale(1.06); outline: none; }
+    .video-mute-trigger.muted { color: #fecaca; }
+    .video-mute-trigger.muted:hover, .video-mute-trigger.muted:focus-visible { background: rgba(239,68,68,0.18); border-color: #f87171; }
     .video-options-dialog {
       width: min(490px, calc(100vw - 28px)); max-height: calc(100vh - 32px); margin: auto; padding: 0;
       overflow: auto; border: 1px solid rgba(165,180,252,0.28); border-radius: 18px;
@@ -1349,12 +1358,27 @@
       return asset.type === 'video' && !isNoticia;
     }
 
-    function saveVideoMutePreference() {
-      if (!selectedVideoAsset) return;
-      const asset = selectedVideoAsset;
-      const muted = videoDefaultMuted.checked;
+    function updateVideoMuteButton(button, asset) {
+      const muted = getDefaultMuteForAsset(asset);
+      button.textContent = muted ? '🔇' : '🔊';
+      button.title = muted ? 'Por defecto: silenciado. Pulsa para activar el sonido.' : 'Por defecto: con sonido. Pulsa para silenciar.';
+      button.setAttribute('aria-label', muted ? `Activar sonido por defecto para ${asset.name}` : `Silenciar por defecto ${asset.name}`);
+      button.classList.toggle('muted', muted);
+    }
+
+    function updateVideoMuteShortcuts(asset) {
+      document.querySelectorAll('.asset-card').forEach(card => {
+        if (card.dataset.assetId !== asset.id) return;
+        const button = card.querySelector('.video-mute-trigger');
+        if (!button) return;
+        updateVideoMuteButton(button, asset);
+      });
+    }
+
+    function saveAssetMutePreference(asset, muted) {
       customMutes[asset.id] = muted;
       localStorage.setItem('trigger_custom_mutes', JSON.stringify(customMutes));
+      updateVideoMuteShortcuts(asset);
 
       if (activePlayback?.assetFile !== asset.file) return;
       if (!activePlayback.sourceName || !ws || ws.readyState !== WebSocket.OPEN) {
@@ -1365,6 +1389,11 @@
       setPlaybackMute(muted);
       ws.send(JSON.stringify({ action: 'mute', sourceName: activePlayback.sourceName, mute: muted }));
       log(`Mute de "${asset.name}" actualizado en la reproducción activa y guardado como preferencia.`, 'success');
+    }
+
+    function saveVideoMutePreference() {
+      if (!selectedVideoAsset) return;
+      saveAssetMutePreference(selectedVideoAsset, videoDefaultMuted.checked);
     }
 
     function updateFolderButtonState() {
@@ -1857,6 +1886,11 @@
       if (savePreference && activePlayback.assetId) {
         customMutes[activePlayback.assetId] = !!muted;
         localStorage.setItem('trigger_custom_mutes', JSON.stringify(customMutes));
+        const asset = allAssets.find(item => item.id === activePlayback.assetId || item.file === activePlayback.assetFile);
+        if (asset) {
+          updateVideoMuteShortcuts(asset);
+          if (selectedVideoAsset?.id === asset.id) videoDefaultMuted.checked = !!muted;
+        }
       }
     }
 
@@ -2026,6 +2060,22 @@
           openVideoOptions(asset);
         });
         card.appendChild(optionsButton);
+
+        const muteButton = document.createElement('button');
+        muteButton.type = 'button';
+        muteButton.className = 'video-mute-trigger';
+        muteButton.addEventListener('click', event => {
+          event.preventDefault();
+          event.stopPropagation();
+          const muted = !getDefaultMuteForAsset(asset);
+          saveAssetMutePreference(asset, muted);
+          if (selectedVideoAsset?.id === asset.id) videoDefaultMuted.checked = muted;
+          if (activePlayback?.assetFile !== asset.file) {
+            log(`"${asset.name}" se reproducirá ${muted ? 'silenciado' : 'con sonido'} por defecto.`, 'success');
+          }
+        });
+        card.appendChild(muteButton);
+        updateVideoMuteButton(muteButton, asset);
       }
 
       card.onclick = () => {
